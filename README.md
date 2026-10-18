@@ -17,6 +17,7 @@ referência executável e histórico identificado.
   separado `602d71c`. [Inventário e hashes das fontes](docs/fontes.md).
 - Mesmas camadas Resource → Controller → Repository/Model → DTO,
   contexto por requisição, `INTERNAL-TOKEN`, logger e session manager.
+  A conexão da API fixa `search_path=public`, como as migrations.
 - Migrations SQL versionadas, com checksum, transação e lock PostgreSQL;
   inicialização de banco vazio e adoção validada de banco da base existente.
 - Compose com PostgreSQL 16, volume nomeado e migration antes da API;
@@ -69,6 +70,10 @@ docker compose restart api
 docker compose down
 ```
 
+A API e o migrador usam o código copiado nas imagens, sem bind mount de `src/`.
+Depois de alterar código ou migrations, executar novamente `up -d --build --wait`.
+Um simples `restart` mantém a versão já construída; não carrega código novo do host.
+
 O volume `postgres_data` preserva dados após restart e `down`. **Não usar
 `down -v` no ambiente de uso:** esse comando remove o volume. Dados de volumes
 anônimos da base antiga não são automaticamente transferidos ao novo volume;
@@ -91,7 +96,7 @@ nome em `-p`. Migrations são exercitadas em bancos aleatórios adicionais,
 criados e removidos no servidor de testes (o usuário local de testes precisa
 poder criar bancos). A API não ganha endpoints administrativos para isso.
 
-Execução local da etapa: **57 testes passaram**, incluindo os 35 testes
+Execução local após a revisão: **83 testes passaram**, incluindo os 35 testes
 originais. A referência externa tem **92 testes** e **59 observações** da
 simulação reproduzidos separadamente; esses números não são testes HTTP/Pix.
 Ver comandos, resultados e limites em [docs/validacao-pr1.md](docs/validacao-pr1.md).
@@ -103,8 +108,13 @@ python3.11 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt -c requirements.lock
 ```
 
-A suíte recusa `APP_ENV` diferente de `testing` e nomes de banco sem prefixo
-`pix_test_`. Não apontar os testes para o banco do ambiente de uso. O caminho
+A suíte exige `APP_ENV=testing`, PostgreSQL com nome `pix_test_` e alvo HTTP
+explícito em `SERVER_LOCALHOST` e `API_PORT`. Antes de coletar testes, insere
+uma entidade sentinela aleatória **somente no banco de testes**, consulta sua
+chave pelo GET da API e remove a sentinela em `finally`. Se a API não enxergar
+a mesma chave e marcador, a suíte aborta com exit code 4 antes de executar
+qualquer teste ou escrita HTTP. Não há fallback para a porta do ambiente de
+uso quando `APP_ENV=testing`. Não apontar a suíte para o banco de uso. O caminho
 recomendado e executado é o Compose isolado acima; não exige Python no host.
 
 ## Migrations

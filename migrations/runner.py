@@ -46,7 +46,55 @@ def _signature(connection, schema):
                          for c in inspector.get_foreign_keys(table, schema=schema))
         checks = sorted(expression(c["sqltext"]) for c in
                         inspector.get_check_constraints(table, schema=schema))
-        result[table] = (columns, primary, unique, foreign, checks)
+        parameters = {"schema": schema, "table": table}
+        collations = connection.execute(text("""
+            SELECT a.attnum, a.attcollation
+            FROM pg_attribute a JOIN pg_class t ON t.oid = a.attrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            WHERE n.nspname = :schema AND t.relname = :table
+                AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+        """), parameters).all()
+        indexes = connection.execute(text("""
+            SELECT am.amname, i.indisprimary, i.indisvalid, i.indisready,
+                i.indimmediate, i.indnullsnotdistinct, i.indnkeyatts,
+                i.indkey::text, i.indclass::text, i.indcollation::text,
+                i.indoption::text, pg_get_expr(i.indexprs, i.indrelid),
+                pg_get_expr(i.indpred, i.indrelid)
+            FROM pg_index i JOIN pg_class t ON t.oid = i.indrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            JOIN pg_class ix ON ix.oid = i.indexrelid
+            JOIN pg_am am ON am.oid = ix.relam
+            WHERE n.nspname = :schema AND t.relname = :table AND i.indisunique
+        """), parameters).all()
+        constraints = connection.execute(text("""
+            SELECT c.contype, c.convalidated, c.condeferrable, c.condeferred,
+                c.connoinherit, pg_get_constraintdef(c.oid)
+            FROM pg_constraint c JOIN pg_class t ON t.oid = c.conrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            WHERE n.nspname = :schema AND t.relname = :table
+        """), parameters).all()
+        security = connection.execute(text("""
+            SELECT t.relrowsecurity, t.relforcerowsecurity,
+                EXISTS (SELECT 1 FROM pg_trigger g
+                        WHERE g.tgrelid = t.oid AND NOT g.tgisinternal)
+            FROM pg_class t JOIN pg_namespace n ON n.oid = t.relnamespace
+            WHERE n.nspname = :schema AND t.relname = :table
+        """), parameters).one()
+        sequence = connection.execute(text("""
+            SELECT s.seqtypid, s.seqstart, s.seqincrement, s.seqmax,
+                s.seqmin, s.seqcache, s.seqcycle
+            FROM pg_sequence s JOIN pg_class t ON t.oid = s.seqrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            WHERE n.nspname = :schema AND t.relname = :table || '_id_seq'
+        """), parameters).all()
+
+        def catalog(rows):
+            return sorted((tuple(expression(v) if isinstance(v, str) else v for v in row)
+                           for row in rows), key=repr)
+
+        result[table] = (columns, primary, unique, foreign, checks,
+                         catalog(collations), catalog(indexes), catalog(constraints),
+                         tuple(security), catalog(sequence))
     return result
 
 
@@ -64,7 +112,7 @@ def _adopt_base(connection, sql):
     reference = "migration_reference_" + uuid4().hex
     connection.exec_driver_sql(f'CREATE SCHEMA "{reference}"')
     connection.exec_driver_sql(f'SET LOCAL search_path TO "{reference}"')
-    connection.exec_driver_sql(sql)
+    connection.exec_driver_sql(sql, execution_options={"no_parameters": True})
     expected = _signature(connection, reference)
     connection.exec_driver_sql("SET LOCAL search_path TO public")
     if _signature(connection, "public") != expected:
@@ -74,6 +122,14 @@ def _adopt_base(connection, sql):
     ).scalars().all()
     if statuses != ["created", "failed", "pending", "success"]:
         raise MigrationError("Base API status seed differs; refusing adoption")
+    for table in BASE_TABLES:
+        # Names are fixed by the initial DDL and signature checked above.
+        maximum = connection.exec_driver_sql(f'SELECT max(id) FROM public."{table}"').scalar_one()
+        last_value, called = connection.exec_driver_sql(
+            f'SELECT last_value, is_called FROM public."{table}_id_seq"'
+        ).one()
+        if maximum is not None and last_value + int(called) <= maximum:
+            raise MigrationError("Base API sequence is behind existing IDs; refusing adoption")
     connection.exec_driver_sql(f'DROP SCHEMA "{reference}" CASCADE')
     return True
 
@@ -92,7 +148,7 @@ def upgrade(engine, directory=DIRECTORY, *, adopt_base=False):
         migrations.append((path.name, sha256(raw).hexdigest(), raw.decode("utf-8")))
 
     applied = []
-    with engine.begin() as connection:
+    with engine.execution_options(isolation_level="READ COMMITTED").begin() as connection:
         connection.exec_driver_sql("SET LOCAL search_path TO public")
         connection.exec_driver_sql("SET LOCAL lock_timeout TO '10s'")
         connection.exec_driver_sql("SET LOCAL statement_timeout TO '30s'")
@@ -113,7 +169,7 @@ def upgrade(engine, directory=DIRECTORY, *, adopt_base=False):
         for name, checksum, sql in migrations[len(history):]:
             adopted = name == "0001_base.sql" and adopt_base and _adopt_base(connection, sql)
             if not adopted:
-                connection.exec_driver_sql(sql)
+                connection.exec_driver_sql(sql, execution_options={"no_parameters": True})
             connection.execute(text(
                 "INSERT INTO public.schema_migration (version, checksum) VALUES (:version, :checksum)"
             ), {"version": name, "checksum": checksum})

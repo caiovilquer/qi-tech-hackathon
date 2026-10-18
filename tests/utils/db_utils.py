@@ -1,10 +1,8 @@
-from os import environ
-
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.engine import make_url
 
 from migrations.runner import upgrade
+from tests.utils.environment import require_test_database_url
 
 
 RESET_QUERIES = [
@@ -28,11 +26,7 @@ class DbUtils:
 
     @staticmethod
     def database_url() -> str:
-        value = environ.get("DATABASE_URL")
-        if (environ.get("APP_ENV") != "testing" or not value
-                or not (make_url(value).database or "").startswith("pix_test_")):
-            raise RuntimeError("Refusing reset outside a dedicated pix_test_ database")
-        return value
+        return require_test_database_url()
 
     @staticmethod
     def rollback() -> None:

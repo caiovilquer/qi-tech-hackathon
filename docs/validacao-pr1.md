@@ -140,3 +140,16 @@ Docker e a suíte da API também passaram: **57 testes**, PostgreSQL real,
 exit code 0. `pytest.ini` separa a descoberta da API (`tests/`) das fontes
 Python arquivadas; `.dockerignore` exclui `docs/contexto/` da imagem.
 Nenhuma implementação das próximas etapas foi antecipada.
+
+## Rodada de correção da revisão
+
+O [relatório de correções](CORRECOES-REVISAO-PR1.md) registra os sete achados,
+os 12 comentários inline, as sugestões opcionais e suas decisões. A suíte
+atual tem **83 testes aprovados com PostgreSQL real**, após reproduzir 18 falhas
+no código anterior. Houve prova negativa da guarda com outra API/banco e
+smoke de consistência imagem/migration em ambiente descartável. Os 92 testes
+de referência e os 24 hashes das fontes também foram conferidos novamente.
+A configuração de conexão em `src/database.py` agora fixa public; a afirmação
+anterior de src intacto descreve o snapshot anterior à revisão, não este HEAD.
+As evidências históricas acima não foram reescritas como se esses casos já
+tivessem sido executados no primeiro snapshot.

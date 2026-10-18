@@ -22,7 +22,7 @@ services:
     build: *api-build
     environment:
       DATABASE_URL: postgresql+psycopg2://bootcamp:bootcamp@db:5432/pix_test_suite
-    command: ["python", "-m", "migrations"]
+    command: ["python", "-m", "migrations", "--adopt-base"]
     depends_on:
       db:
         condition: service_healthy

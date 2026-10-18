@@ -1,7 +1,8 @@
 import json
 from requests import request, Response
 from requests.exceptions import ConnectionError as RequestsConnectionError
-from os import environ
+
+from tests.utils.environment import api_base_url
 
 
 API_OFFLINE = (
@@ -26,9 +27,7 @@ class ClientRequisition:
         if headers is None:
             headers = dict()
 
-        api_host = environ.get("SERVER_LOCALHOST", "0.0.0.0")
-        api_port = environ.get("API_PORT", "3000")
-        base_url = f"http://{api_host}:{api_port}"
+        base_url = api_base_url()
 
         url = f"{base_url}{endpoint}"
 

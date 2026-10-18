@@ -26,7 +26,7 @@ def migration_db():
     finally:
         engine.dispose()
         with admin.connect() as connection:
-            connection.exec_driver_sql(f'DROP DATABASE "{database}"')
+            connection.exec_driver_sql(f'DROP DATABASE "{database}" WITH (FORCE)')
         admin.dispose()
 
 
@@ -38,9 +38,10 @@ def migration_files(tmp_path, extra=None):
     return tmp_path
 
 
-def test_empty_database_and_second_run(migration_db):
-    assert upgrade(migration_db) == ["0001_base.sql"]
-    assert upgrade(migration_db) == []
+@pytest.mark.parametrize("adopt_base", [False, True])
+def test_empty_database_and_second_run(migration_db, adopt_base):
+    assert upgrade(migration_db, adopt_base=adopt_base) == ["0001_base.sql"]
+    assert upgrade(migration_db, adopt_base=adopt_base) == []
     with migration_db.connect() as connection:
         assert set(inspect(connection).get_table_names()) == {
             "schema_migration", "sample_entity", "sample_entity_status", "sample_entity_status_event"
@@ -104,6 +105,20 @@ def test_legacy_requires_explicit_adoption(migration_db):
     "ALTER TABLE sample_entity DROP CONSTRAINT sample_entity_email_key",
     "DELETE FROM sample_entity_status WHERE enumerator='created'",
     "DROP TABLE sample_entity_status_event",
+    "CREATE UNIQUE INDEX extra_name_unique ON sample_entity (name)",
+    "CREATE UNIQUE INDEX extra_partial_unique ON sample_entity (name) WHERE counter > 0",
+    "CREATE UNIQUE INDEX extra_expression_unique ON sample_entity (lower(name))",
+    'ALTER TABLE sample_entity ALTER COLUMN email TYPE VARCHAR(255) COLLATE "C"',
+    """ALTER TABLE sample_entity DROP CONSTRAINT sample_entity_status_id_fkey;
+       ALTER TABLE sample_entity ADD FOREIGN KEY (status_id)
+       REFERENCES sample_entity_status(id) NOT VALID""",
+    "SELECT setval('sample_entity_id_seq', 1, false)",
+    "ALTER SEQUENCE sample_entity_id_seq INCREMENT BY 2",
+    "ALTER TABLE sample_entity ENABLE ROW LEVEL SECURITY",
+    """CREATE FUNCTION legacy_trigger() RETURNS trigger LANGUAGE plpgsql AS
+       $$ BEGIN RETURN NEW; END $$;
+       CREATE TRIGGER legacy_trigger BEFORE INSERT ON sample_entity
+       FOR EACH ROW EXECUTE FUNCTION legacy_trigger()""",
 ])
 def test_legacy_drift_is_rejected_without_modification(migration_db, drift):
     seed_legacy(migration_db)
@@ -153,12 +168,27 @@ def test_unknown_applied_version_is_rejected(migration_db):
         upgrade(migration_db)
 
 
-def test_concurrent_migrators_apply_exactly_once(migration_db, tmp_path):
-    directory = migration_files(tmp_path, """
+@pytest.mark.parametrize("default_isolation", ["read committed", "repeatable read", "serializable"])
+@pytest.mark.parametrize("preexisting", [False, True])
+def test_concurrent_migrators_apply_exactly_once(migration_db, tmp_path, default_isolation, preexisting):
+    if preexisting:
+        upgrade(migration_db)
+        with migration_db.begin() as connection:
+            connection.exec_driver_sql("CREATE TABLE once_only (isolation TEXT)")
+    # The database setting applies to NEW connections, as on a configured server.
+    with migration_db.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
+        connection.exec_driver_sql(
+            f'ALTER DATABASE "{migration_db.url.database}" '
+            f"SET default_transaction_isolation TO '{default_isolation}'"
+        )
+    migration_db.dispose()
+    script = """
         SELECT pg_sleep(0.2);
-        CREATE TABLE once_only (id INTEGER);
-        INSERT INTO once_only VALUES (1);
-    """)
+        INSERT INTO once_only VALUES (current_setting('transaction_isolation'));
+    """
+    if not preexisting:
+        script = "CREATE TABLE once_only (isolation TEXT);" + script
+    directory = migration_files(tmp_path, script)
     barrier = Barrier(2)
 
     def run():
@@ -167,9 +197,9 @@ def test_concurrent_migrators_apply_exactly_once(migration_db, tmp_path):
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(lambda _: run(), range(2)))
-    assert sorted(map(len, results)) == [0, 2]
+    assert sorted(map(len, results)) == [0, 1 if preexisting else 2]
     with migration_db.connect() as connection:
-        assert connection.exec_driver_sql("SELECT count(*) FROM once_only").scalar_one() == 1
+        assert connection.exec_driver_sql("SELECT isolation FROM once_only").scalars().all() == ["read committed"]
         assert connection.exec_driver_sql("SELECT count(*) FROM schema_migration").scalar_one() == 2
 
 
@@ -191,3 +221,68 @@ def test_reset_requires_testing_environment(monkeypatch):
     monkeypatch.setenv("APP_ENV", "local")
     with pytest.raises(RuntimeError, match="Refusing reset"):
         DbUtils.rollback()
+
+
+@pytest.mark.parametrize("expression, expected", [
+    ("'100%'", "100%"),
+    ("'100%%'", "100%%"),
+    ("format('%s', 'x')", "x"),
+])
+def test_migration_preserves_percent_literals(migration_db, tmp_path, expression, expected):
+    directory = migration_files(tmp_path, f"""
+        CREATE TABLE percent_literal (value TEXT);
+        INSERT INTO percent_literal VALUES ({expression});
+    """)
+    upgrade(migration_db, directory)
+    with migration_db.connect() as connection:
+        assert connection.exec_driver_sql("SELECT value FROM percent_literal").scalar_one() == expected
+
+
+def test_migration_with_like_and_plpgsql_percent(migration_db, tmp_path):
+    directory = migration_files(tmp_path, """
+        CREATE TABLE percent_rule (value TEXT CHECK (value LIKE 'a%'));
+        CREATE FUNCTION percent_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+            IF NEW.value = 'alarm' THEN
+                RAISE EXCEPTION 'invalid value %', NEW.value;
+            END IF;
+            RETURN NEW;
+        END $$;
+        CREATE TRIGGER percent_guard BEFORE INSERT ON percent_rule
+            FOR EACH ROW EXECUTE FUNCTION percent_guard();
+        INSERT INTO percent_rule VALUES ('allowed');
+    """)
+    upgrade(migration_db, directory)
+    with migration_db.connect() as connection:
+        assert connection.exec_driver_sql("SELECT value FROM percent_rule").scalar_one() == "allowed"
+    with pytest.raises(DBAPIError, match="invalid value alarm"):
+        with migration_db.begin() as connection:
+            connection.exec_driver_sql("INSERT INTO percent_rule VALUES ('alarm')")
+
+
+def test_adoption_executes_initial_ddl_with_literal_percent(migration_db, tmp_path):
+    seed_legacy(migration_db)
+    directory = migration_files(tmp_path)
+    with (directory / "0001_base.sql").open("a") as output:
+        output.write("\n-- original bytes include a literal 100% and 100%%\n")
+    assert upgrade(migration_db, directory, adopt_base=True) == ["0001_base.sql"]
+
+
+def test_api_uses_public_despite_user_schema(migration_db):
+    import os
+    import subprocess
+    import sys
+
+    with migration_db.begin() as connection:
+        connection.exec_driver_sql('CREATE SCHEMA "bootcamp"')
+        connection.exec_driver_sql('CREATE TABLE "bootcamp".sample_entity (wrong INTEGER)')
+    environment = dict(os.environ, DATABASE_URL=migration_db.url.render_as_string(hide_password=False),
+                       PYTHONPATH=str(Path(__file__).resolve().parents[2] / "src"))
+    result = subprocess.run([sys.executable, "-c", """
+from database import engine
+with engine.connect() as c:
+    assert c.exec_driver_sql('SHOW search_path').scalar_one() == 'public'
+    assert c.exec_driver_sql('SELECT current_schema()').scalar_one() == 'public'
+engine.dispose()
+"""], env=environment, capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stdout + result.stderr

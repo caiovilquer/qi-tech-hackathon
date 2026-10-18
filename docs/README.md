@@ -9,6 +9,7 @@ Caches, ambientes virtuais e temporários ficaram fora do Git.
 
 1. [Prompt de revisão independente](REVISAO-PR1.md): objetivo, critérios,
    arquivos, comandos e formato dos achados.
+   Para a nova rodada, leia também o [relatório de correções](CORRECOES-REVISAO-PR1.md).
 2. [Plano de implementação](../PLANO-IMPLEMENTACAO.md): limites e gates de
    cada etapa. A PR 1 entrega a base e migrations, sem endpoints Pix.
 3. [README do projeto](../README.md), [migrations](migrations.md) e

@@ -8,12 +8,12 @@ os problemas que encontrar.
 PR: https://github.com/caiovilquer/qi-tech-hackathon/pull/1
 Branch: feat/pix-foundation
 Base: main (baffeeead1f541d8d91ed3762a6a8c595d7f5bd9)
-SHA da implementação funcional: f5b02cae18fb4b914ca4b98886f7c8fb3360d5cf
-A PR contém também um commit posterior de organização documental. Revise o
+Snapshot da primeira revisão: 9fa01b3748156945a37382dc4d1dccab13bd39b3
+A PR contém correções posteriores desse snapshot. Revise o
 HEAD atual da PR, cujo SHA exato está na descrição da PR. Para obtê-lo:
 `gh pr view 1 --repo caiovilquer/qi-tech-hackathon --json headRefOid --jq .headRefOid`.
 Registre o SHA efetivamente revisado no relatório.
-Repositório local: /Users/caiovilquer/Developer/personal/qi-tech-hacka/bootcamp-base-api
+Repositório local: raiz de um clone de caiovilquer/qi-tech-hackathon
 
 ## Objetivo e limites
 
@@ -26,11 +26,11 @@ documentação respeitam esses limites sem apresentar comportamento incompleto
 como pronto.
 
 O commit 602d71c importa 67 arquivos byte a byte iguais ao ZIP original.
-408710b contém o plano. f5b02ca contém a implementação da etapa. Para focar a
-revisão: git diff 602d71c..f5b02ca. src/ e os 35 testes HTTP originais não foram
-alterados; os helpers de teste foram adaptados. Para as mudanças de contexto
-posteriores, confira também `git diff f5b02ca..HEAD`: fontes arquivadas,
-índice/prompt/links e separação da descoberta de testes/build.
+Para a re-revisão, comece pelo relatório `docs/CORRECOES-REVISAO-PR1.md` e pelo
+diff `git diff 9fa01b3..HEAD`. Ele registra os sete achados, os comentários
+duplicados e a avaliação das três sugestões opcionais. Revise também possíveis
+regressões das correções. Os 35 testes HTTP originais permanecem intactos;
+`src/database.py` foi ajustado para fixar o search_path da API em public.
 
 ## Requisitos e critérios de aceitação
 
@@ -55,12 +55,14 @@ posteriores, confira também `git diff f5b02ca..HEAD`: fontes arquivadas,
 ## Arquivos relevantes
 
 PLANO-IMPLEMENTACAO.md, README.md, docs/README.md, docs/REVISAO-PR1.md,
-docs/contexto/, docs/fontes.md, docs/migrations.md, pytest.ini, .dockerignore,
+docs/CORRECOES-REVISAO-PR1.md, docs/contexto/, docs/fontes.md,
+docs/migrations.md, pytest.ini, .dockerignore,
 docs/validacao-pr1.md, migrations/runner.py, migrations/__main__.py,
 migrations/0001_base.sql, database/database.sql, Dockerfile,
 docker-compose.yml, compose.test.yml, requirements.lock,
 .github/workflows/tests.yml, tests/conftest.py, tests/utils/db_utils.py,
-tests/utils/requisition.py, tests/integration/test_migrations.py,
+tests/utils/requisition.py, tests/utils/environment.py,
+tests/integration/test_environment_guard.py, tests/integration/test_migrations.py,
 tests/integration/test_base_persistence.py e testes originais da base.
 
 Todas as fontes fornecidas estão versionadas em docs/contexto/, inclusive
@@ -94,11 +96,24 @@ smoke de persistência, use o cadastro sintético do README, consulte pela chave
 reinicie a API e repita o GET; down sem -v seguido de up deve preservar os dados.
 O cleanup com -v acima se refere somente à stack descartável de testes.
 
-Resultados locais registrados: 35 testes da base antes das mudanças; 57 após
-implementação; adoção manual com 28 registros sintéticos preservados;
-consulta igual após restart da API e recriação dos containers. A referência
-externa passou em 92 testes e reproduziu 59 observações, sem comprovar API/Pix.
-Os checks da implementação funcional concluíram com sucesso, com 57 testes em Linux/PostgreSQL. Confira também os checks do HEAD atual e faça sua própria revisão; isso não exclui bugs.
+Validação local das correções: **83 testes HTTP/PostgreSQL passaram**, incluindo
+os 35 originais. Os novos casos reproduziram 18 falhas no runner anterior;
+verifique os novos asserts e não apenas o total. Foram exercitados `%` em
+literais/LIKE/PLpgSQL/adoção, drift de índices/collation/validação, concorrência
+sob defaults READ COMMITTED/REPEATABLE READ/SERIALIZABLE, sentinela positiva e
+negativa com a API lendo outro banco, e search_path com schema homônimo ao role.
+Também foi feita a reprodução de mudança de código/migration no host em uma
+cópia descartável: sem rebuild ambos permaneceram antigos; com rebuild ambos
+foram atualizados. Confira o relatório e os checks do HEAD, sem presumir que
+esses testes excluem bugs.
+
+Pontos de atenção para a re-revisão: limpeza da sentinela em erro, ausência de
+escritas HTTP antes da verificação, equivalência dos catálogos na adoção,
+execução literal de SQL e snapshot pós-lock em READ COMMITTED. Os scripts de
+migration continuam confiáveis e estritamente transacionais por contrato;
+o runner não é sandbox/parser de SQL arbitrário. A sugestão opcional de
+checar o lock depois de COMMIT não foi adotada porque não impede o commit
+já ocorrido; essa limitação está explícita no relatório e em docs/migrations.md.
 
 A referência documental pode ser executada separadamente, com as dependências
 instaladas: `.venv/bin/python -m unittest discover -s docs/contexto -p 'test_*.py' -q`.
