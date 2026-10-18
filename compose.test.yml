@@ -55,3 +55,16 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+  demo:
+    profiles: [demo]
+    build:
+      context: .
+      target: test
+    environment:
+      APP_ENV: testing
+      DATABASE_URL: postgresql+psycopg2://bootcamp:bootcamp@db:5432/pix_test_suite
+    command: ["python", "-m", "scripts.demo_pix"]
+    depends_on:
+      db:
+        condition: service_healthy
