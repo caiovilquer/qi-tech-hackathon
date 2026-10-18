@@ -89,8 +89,8 @@ Adicionar a próxima migration SQL com número consecutivo e alterações
 compatíveis. Rodar a stack isolada do README. A suíte verifica banco vazio,
 upgrade com dados existentes, adoção, drift, execução repetida/concorrente,
 checksum, histórico desconhecido e rollback do lote. Não usa SQLite.
-`database/database.sql` continua como arquivo original da base, mas os resets
-de testes e a inicialização atual aplicam as migrations.
+A migration `0001_base.sql` reproduz o schema original da base; os resets de
+testes e a inicialização aplicam somente as migrations.
 
 ## 0002 — persistência interna Pix
 

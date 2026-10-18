@@ -168,9 +168,5 @@ os locks finais; nenhum desses casos instrui retry técnico. Logs escapam
 controles/Unicode em path/query e nos handlers de erro. O pool Pix nasce em
 `pix_engine_for(url)`; os testes ligam os mesmos parâmetros ao banco descartável
 de cada caso, sem gravar Pix no banco compartilhado da sentinela.
-Correções e ressalvas da revisão: [CORRECOES-REVISAO-PR5.md](CORRECOES-REVISAO-PR5.md);
-da re-revisão: [CORRECOES-REREVISAO-PR5.md](CORRECOES-REREVISAO-PR5.md).
-
-Validação/TDD: [validacao-pr5.md](validacao-pr5.md). Revisão:
-[REVISAO-PR5.md](REVISAO-PR5.md). A aceitação/demonstração integrada e os limites da entrega estão em
-[aceitacao-pix.md](aceitacao-pix.md) e [validacao-pr6.md](validacao-pr6.md).
+A cobertura de aceitação, a demonstração integrada e os limites da entrega estão em
+[aceitacao-pix.md](aceitacao-pix.md).

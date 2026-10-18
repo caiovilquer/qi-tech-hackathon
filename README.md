@@ -7,7 +7,6 @@ um Pix, aplica a política **experimental** `pix-experimental-v3` e devolve `app
 `two_factor_required` ou `rejected`. Entrega `POST /pix/transaction` e
 `GET /pix/transaction/{id}`, histórico próprio em banco, análise imutável, idempotência
 concorrente, providers simulados e eventos bancários internos.
-[Plano e histórico das etapas](PLANO-IMPLEMENTACAO.md).
 
 ## Como o motor de decisão funciona
 
@@ -177,7 +176,7 @@ banco de uso.
 ```bash
 docker compose -p pix-tests -f compose.test.yml up --build --abort-on-container-exit --exit-code-from tests tests
 docker compose -p pix-tests -f compose.test.yml run --rm --no-deps \
-  -v "$PWD/docs/contexto:/reference:ro" tests \
+  -v "$PWD/docs/referencia:/reference:ro" tests \
   python tests/reference/verify_pix_reference.py --reference-dir /reference
 docker compose -p pix-tests -f compose.test.yml down -v --remove-orphans
 ```
@@ -186,8 +185,8 @@ São **448 testes** (HTTP real, concorrência, processos, falhas SQL, tempo, pro
 migrations e aceitação) mais a comparação com a referência Python V3 (59 observações e
 2.000 contextos com `Decision` equivalente). A guarda exige `APP_ENV=testing`, banco
 `pix_test_` e confirma por sentinela que a API usa o mesmo banco antes de coletar.
-Resultados, tempos e evidências por etapa estão em [docs/validacao-pr6.md](docs/validacao-pr6.md)
-e [docs/aceitacao-pix.md](docs/aceitacao-pix.md).
+A cobertura por grupo do guia e os limites da evidência estão em
+[docs/aceitacao-pix.md](docs/aceitacao-pix.md).
 
 ### Demonstração dos sete cenários
 
@@ -235,11 +234,12 @@ PYTHONPATH=src .venv/bin/python -m unittest discover -s tests/unit -p 'test_pix*
 
 O PDF oficial exige contrato, três status, histórico, Base Service, testes e este README.
 Normalização, DICT condicional, eventos, locks e protocolos são decisões do
-[guia V3](docs/contexto/GUIA-IMPLEMENTACAO-ANTIFRAUDE-PIX.md). Pesos, cortes, janelas e
+[guia V3](docs/referencia/GUIA-IMPLEMENTACAO-ANTIFRAUDE-PIX.md). Pesos, cortes, janelas e
 TTL são **experimentais**, sem promessa de calibração, eficácia, conformidade Pix ou
 operação de DICT real. Não há onboarding, execução financeira, frontend ou integração
 bancária real. As rotas Sample Entity da base foram preservadas fora do domínio Pix.
 
-[Índice das fontes e revisões](docs/README.md), [contrato do motor](docs/motor-pix.md),
+[Índice da documentação](docs/README.md), [contrato do motor](docs/motor-pix.md),
 [providers](docs/providers-pix.md), [storage/eventos](docs/storage-pix.md) e
-[correções da última revisão](docs/CORRECOES-REVISAO-PR6.md).
+[guia de apresentação](docs/guia-apresentacao.md). A referência Python V3 e seus testes
+originais ficam em `docs/referencia/`.

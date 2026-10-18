@@ -1,4 +1,4 @@
-"""Contract invariants ported from docs/contexto/test_contrato_pix.py (36 tests).
+"""Contract invariants ported from docs/referencia/test_contrato_pix.py (36 tests).
 
 Fixtures ficticias: payload do slide 19 (CPFs com DV correto, sem consulta
 de cadastro); CNPJ alfanumerico do exemplo de calculo da Receita Federal.
