@@ -68,7 +68,7 @@ def verify(reference_dir):
             trusted_beneficiary=rng.choice([True, False]), bank_limit_exceeded=rng.choice([True, False]))
         evidence = tuple((role, domain.DictEvidence(document, rng.choice(['available', 'not_covered', 'unavailable', 'stale']),
             BASE-timedelta(days=1), BASE-timedelta(days=1), BASE+timedelta(days=rng.choice([-1, 1])),
-            fraud_count=rng.randrange(2), open_reports=rng.randrange(2))) for role, document in
+            fraud_count=rng.randrange(2), open_reports=rng.randrange(2), provenance="synthetic_fixture")) for role, document in
             [('payer', current.payer.document), ('payee', current.payee_document)])
         context = domain.Context(current, current.transaction_at, tuple(history), tuple(executions),
             tuple(authentications), security, evidence, ('payer', 'payee'))

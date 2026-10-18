@@ -13,7 +13,8 @@ Não há nova migration ou nova dependência nesta PR.
   precisão perdida por um `json.loads` comum. No futuro resource, usar bytes.
 - Schema oficial e verificações semânticas validam CPF/CNPJ (inclusive
   alfanumérico), UTC, aberturas, ID e metadados. IP inválido gera `IP_INVALID`
-  e `null`, sem pontos próprios; o texto original ainda afeta o hash.
+  e `null`, sem pontos próprios; o texto original afeta o hash e é retido em
+  `NormalizedPayload.invalid_ip_raw`, apenas na auditoria privada.
 - Hash SHA-256 usa todos os campos normalizados, inclusive campos que não
   pontuam. Não garante idempotência sozinho; reserva e persistência são futuras.
 - `antifraud.adapter.to_pix(normalized, tenant)` constrói a identidade do
@@ -25,10 +26,12 @@ Não há nova migration ou nova dependência nesta PR.
   chamador. Sem banco, rede, geração de UUID ou leitura de relógio global.
 - `preliminary` executa a mesma avaliação sem evidências DICT; `local_score`
   e `c_pre` são iguais aos da avaliação final sobre o mesmo contexto local.
-- `antifraud.dto.PixTransactionDTO.analyze(key, normalized, context, policy)`
-  avalia e produz `public_json`/`audit_json` congelados. UUID e tempo vêm do
-  chamador. O factory recusa Pix diferente do payload validado. A biblioteca
-  fica em `antifraud` para não importar o package de DTOs legados, que carrega
+- `antifraud.dto.PixTransactionDTO.from_decision(key, normalized, context, policy, decision)`
+  formata uma `Decision` já calculada pelo chamador em `public_json`/`audit_json`
+  congelados, sem executar regras. UUID e tempo também vêm do chamador.
+  O chamador deve fornecer a decisão do mesmo Context/Policy; o factory recusa
+  Pix diferente do payload validado e versão de decisão diferente da política.
+  A biblioteca fica em `antifraud` para não importar o package de DTOs legados, que carrega
   models/SQLAlchemy. O resource futuro continuará usando a camada de DTO.
 
 O DTO público tem exatamente `key`, `status`, `metadata`. Metadata inclui
@@ -36,13 +39,23 @@ versão, score, coeficiente preliminar, motivos, tempo, qualidade e ações/esta
 de enriquecimento. Não inclui documentos de terceiros, contadores de fraude
 ou prontuário de bureau. Para consulta não solicitada, `state` é `null`;
 `action` distingue skip/cache/consulta quando fornecida pelo orquestrador.
-Não fabricar `not_covered` quando não houve consulta.
+Não fabricar `not_covered` quando não houve consulta. Uma ação explícita deve
+concordar com `dict_queried`; `cache` exige evidência vigente do papel. Ações
+omitidas podem ser inferidas de `dict_queried`, sem contradizer uma ação explícita.
+
+`Pix.device_id` e `DictEvidence.provenance` são obrigatórios, sem defaults de
+fixtures nos tipos de produção. Fixtures passam a origem explicitamente nos
+testes. Restrições de `payer` aceitam `AccountKey`; de `payee`, `DestinationKey`.
+`both` significa restrição ao documento nos dois papéis e exige `account=None`.
+Para restringir uma conta específica, informar seu papel e o tipo correspondente.
 
 O registro privado guarda política integral/fingerprint, decisão com pontos,
 tetos e pisos, payload/hash, evidências de segurança/DICT e features agregadas
 usadas pelas regras. Medianas de centavos são frações `{numerator, denominator}`,
-sem float. Não copia todo o histórico. As propriedades `public` e `audit`
-retornam cópias independentes. Imutabilidade aqui é em memória; proteção de
+sem float. `invalid_ip_raw` completa o envelope canônico privado
+`{"payload": ..., "invalid_ip_raw": ...}` para recomputar o SHA-256, inclusive
+quando o IP normalizado é `null`. Não copia todo o histórico. As propriedades
+`public` e `audit` retornam cópias independentes. Imutabilidade aqui é em memória; proteção de
 banco e replay HTTP serão implementados nas etapas 4/5.
 
 ## Configuração
@@ -110,7 +123,11 @@ integralmente no arquivo JSON e validados por `configuration_schema()`.
 | `DICT_CHECK_UNAVAILABLE` | Contraparte | `{'points': 10}` | reputation |
 
 Os tetos iniciais são Limite 30, Velocity 30, Montante 30, Perfil 30,
-Acesso 40 e Contraparte 50. `score >= 70` rejeita; `score >= 30` exige
+Acesso 40 e Contraparte 50. Pesos assimétricos mantêm o máximo entre os dois
+relógios de frequência; o segundo motivo recebe somente o incremento positivo.
+Os papéis DICT adversos do mesmo documento também contribuem com o máximo,
+sem duplicar; documentos distintos continuam independentes. `score >= 70`
+rejeita; `score >= 30` exige
 2FA. Pisos prevalecem sobre score e tetos; zerar pesos não remove uma
 restrição explícita ou um limite operacional. `C_pre` é coeficiente ordinal,
 não probabilidade; seleção condicional de consultas pertence à PR 3.
@@ -141,3 +158,10 @@ Há duas bordas adicionais, cobertas por testes próprios:
 Tipos/enums/contadores e configuração agora falham cedo em entradas inválidas,
 e objetos de payload/DTO não expõem estado mutável. Não se atribuem essas
 validações aos testes de integração HTTP ou aos providers ainda futuros.
+
+## Correções da revisão independente
+
+[Relatório por achado](CORRECOES-REVISAO-PR2.md), com testes red/green,
+limites, alterações internas de contrato e decisões sobre sugestões opcionais.
+Hora/minuto/segundo são validados explicitamente antes de `fromisoformat`,
+preservando 422/QIT002004 mesmo em runtimes que aceitem `24:00:00`.

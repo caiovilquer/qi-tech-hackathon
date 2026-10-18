@@ -12,6 +12,11 @@ SHA: revisar o commit exato informado na descrição da PR; confirmar com
 e registrar esse SHA no relatório. O prompt fica versionado antes do commit
 para não criar referência circular ao próprio hash.
 
+Para a re-revisão, comece por `docs/CORRECOES-REVISAO-PR2.md` e pelo diff
+`git diff c6b7eb5..HEAD`. Há nove achados corrigidos, a separação opcional do
+DTO e decisões explícitas sobre os quatro nits. Confirme o novo SHA na descrição
+da PR; a revisão original avaliou `c6b7eb5feac1ef0de90901e9568ecf26a95cc082`.
+
 ## Objetivo e limites
 
 Entregar parser/schema exatos do contrato oficial, tipos imutáveis, motor puro
@@ -81,7 +86,7 @@ git switch --detach origin/feat/pix-engine
 git rev-parse HEAD
 # Conferir o SHA com a descrição e headRefOid da PR.
 docker compose -p pix-pr2-review -f compose.test.yml up --build --abort-on-container-exit --exit-code-from tests tests
-docker compose -p pix-pr2-review -f compose.test.yml run --rm -v "$PWD/docs/contexto:/reference:ro" tests python tests/reference/verify_pix_reference.py --reference-dir /reference
+docker compose -p pix-pr2-review -f compose.test.yml run --rm --no-deps -v "$PWD/docs/contexto:/reference:ro" tests python tests/reference/verify_pix_reference.py --reference-dir /reference
 docker compose -p pix-pr2-review -f compose.test.yml down -v --remove-orphans
 ```
 
@@ -94,7 +99,7 @@ PYTHONPATH=src .venv/bin/python -m unittest discover -s tests/unit -p 'test_pix*
 PYTHONPATH=src .venv/bin/python tests/reference/verify_pix_reference.py
 ```
 
-Evidência local declarada: 186 testes (83 anteriores + 103 novos puros),
+Evidência local após correções: 214 testes (83 anteriores + 131 puros),
 92 originais separados, 59 observações e 2.000 contextos diferenciais.
 Verifique os asserts e a cobertura; esses números não demonstram HTTP/Pix,
 transações Pix, concorrência Pix, eficácia ou recuperação de commit.

@@ -7,7 +7,8 @@ Caches, ambientes virtuais e temporários ficaram fora do Git.
 
 ## Ordem de leitura para a PR 2
 
-1. [Prompt de revisão independente](REVISAO-PR2.md),
+1. [Correções da revisão](CORRECOES-REVISAO-PR2.md),
+   [prompt de revisão independente](REVISAO-PR2.md),
    [plano](../PLANO-IMPLEMENTACAO.md) e [README](../README.md).
 2. [Interfaces, critérios e configuração do motor](motor-pix.md) e
    [evidências e rastreabilidade dos testes](validacao-pr2.md).

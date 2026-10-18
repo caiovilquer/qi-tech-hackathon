@@ -23,6 +23,10 @@ from tests.support.pix_scenarios import BASE
 KEY = '58ce6c65-0d45-4d5f-b5c8-2e65585a3fb8'
 
 
+def snapshot(key, normalized, context, policy):
+    return PixTransactionDTO.from_decision(key, normalized, context, policy, evaluate(context, policy))
+
+
 class PixFixture:
 
     def setUp(self):
@@ -70,7 +74,7 @@ class EngineTests(PixFixture, unittest.TestCase):
                 replace(self.pix, amount_cents=amount)
 
     def test_domain_rejects_incorrect_reputation_subject_and_duplicate_roles(self):
-        evidence = DictEvidence(self.pix.payee_document, 'available', BASE, BASE, BASE+timedelta(days=1))
+        evidence = DictEvidence(self.pix.payee_document, 'available', BASE, BASE, BASE+timedelta(days=1), provenance="synthetic_fixture")
         with self.assertRaises(ValueError):
             replace(self.context, dict_evidence=(('payer', evidence),))
         with self.assertRaises(ValueError):
@@ -98,7 +102,7 @@ class EngineTests(PixFixture, unittest.TestCase):
             ('available', self.context.decision_at+timedelta(seconds=1), BASE+timedelta(days=10)),
         ):
             with self.subTest(state=state, observed=observed):
-                evidence = DictEvidence(self.pix.payer.document, state, observed, BASE, expires)
+                evidence = DictEvidence(self.pix.payer.document, state, observed, BASE, expires, provenance="synthetic_fixture")
                 c = replace(self.context, dict_evidence=(('payer', evidence),), dict_queried=('payer',))
                 self.assertIn('DICT_CHECK_UNAVAILABLE', {r.code for r in evaluate(c).reasons})
 
@@ -108,7 +112,7 @@ class EngineTests(PixFixture, unittest.TestCase):
         from antifraud.configuration import PolicyCatalog
         policy = PolicyCatalog.from_mapping({'policies': {'custom': config}, 'tenants': {'demo': 'custom'}}).for_tenant('demo')
         evidence = DictEvidence(self.pix.payer.document, 'available', BASE, BASE,
-                                BASE+timedelta(days=10), fraud_count=1)
+                                BASE+timedelta(days=10), fraud_count=1, provenance="synthetic_fixture")
         context = replace(self.context, dict_evidence=(('payer', evidence),), dict_queried=('payer',))
         before, after = preliminary(context, policy), evaluate(context, policy)
         self.assertEqual(before.local_score, after.local_score)
@@ -176,7 +180,7 @@ class SnapshotTests(PixFixture, unittest.TestCase):
                             BASE+timedelta(days=10), fraud_count=7, provenance='private-bureau')
         c = replace(self.context, dict_evidence=(('payee', item),), dict_queried=('payee',),
                     dict_actions=(('payee', 'queried'),))
-        dto = PixTransactionDTO.analyze(KEY, self.normalized, c, self.policy)
+        dto = snapshot(KEY, self.normalized, c, self.policy)
         self.assertEqual(set(dto.public), {'key', 'status', 'metadata'})
         for secret in (self.pix.payee_document, 'fraud_count', 'private-bureau'):
             self.assertNotIn(secret, dto.public_json)
@@ -186,12 +190,12 @@ class SnapshotTests(PixFixture, unittest.TestCase):
         self.assertEqual(dto.audit['decision']['status'], dto.public['status'])
 
     def test_frozen_dto_survives_mutation_event_and_policy_change(self):
-        dto = PixTransactionDTO.analyze(KEY, self.normalized, self.context, self.policy)
+        dto = snapshot(KEY, self.normalized, self.context, self.policy)
         public, audit = dto.public_json, dto.audit_json
         dto.public['metadata']['reasons'].clear()
         dto.audit['policy']['parameters']['family_caps'].clear()
         c = replace(self.context, security=security(self.pix, 'revoked'))
-        new = PixTransactionDTO.analyze(KEY, self.normalized, c, replace(self.policy, version='next-version'))
+        new = snapshot(KEY, self.normalized, c, replace(self.policy, version='next-version'))
         self.assertNotEqual(new.public_json, public)
         self.assertEqual((dto.public_json, dto.audit_json), (public, audit))
         with self.assertRaises(FrozenInstanceError):
@@ -201,13 +205,13 @@ class SnapshotTests(PixFixture, unittest.TestCase):
         for context in (replace(self.context, pix=replace(self.pix, amount_cents=1)),
                         replace(self.context, pix=replace(self.pix, id='another'))):
             with self.assertRaises(ValueError):
-                PixTransactionDTO.analyze(KEY, self.normalized, context, self.policy)
+                snapshot(KEY, self.normalized, context, self.policy)
         with self.assertRaises(ValueError):
-            PixTransactionDTO.analyze('bad-key', self.normalized, self.context, self.policy)
+            snapshot('bad-key', self.normalized, self.context, self.policy)
 
     def test_missing_and_skipped_enrichment_have_distinct_states(self):
         c = replace(self.context, dict_queried=('payer',), dict_actions=(('payee', 'skipped_confidence'),))
-        dto = PixTransactionDTO.analyze(KEY, self.normalized, c, self.policy)
+        dto = snapshot(KEY, self.normalized, c, self.policy)
         self.assertEqual(dto.public['metadata']['enrichment']['payer'], {'action': 'queried', 'state': 'unavailable'})
         self.assertEqual(dto.public['metadata']['enrichment']['payee'], {'action': 'skipped_confidence', 'state': None})
 
@@ -217,6 +221,6 @@ class SnapshotTests(PixFixture, unittest.TestCase):
         old2 = replace(old1, id='old2', amount_cents=2, transaction_at=old1.transaction_at-timedelta(days=1))
         c = replace(self.context, history=(history(old1), history(old2)),
                     execution_events=(execution(old1), execution(old2)))
-        dto = PixTransactionDTO.analyze(KEY, self.normalized, c, self.policy)
+        dto = snapshot(KEY, self.normalized, c, self.policy)
         self.assertEqual(dto.audit['features']['profile_median_cents'], {'numerator': 3, 'denominator': 2})
         self.assertEqual(dto.audit['features']['mature_payee_payments'], 2)

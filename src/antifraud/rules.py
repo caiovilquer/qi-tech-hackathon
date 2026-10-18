@@ -65,7 +65,10 @@ def velocity(f, p, args, *, receipt=False):
     soft, hard = p.velocity_pf if f.p.payer_pf else p.velocity_pj
     count = f.receipt_count if receipt else f.count
     if count >= soft:
-        points = 0 if receipt and f.count >= soft else args["points"]
+        points = args["points"]
+        if receipt and f.count >= soft:
+            # Both clocks describe one signal, including asymmetric tenant weights.
+            points = max(0, points - dict(p.parameters_for("VELOCITY_BURST"))["points"])
         return points, REJECTED if count >= hard else None
 
 
@@ -168,7 +171,10 @@ def dict_adverse(f, p, args, *, role):
         payer = evidence.get("payer")
         duplicate = (role == "payee" and payer is not None and payer.document == item.document
                      and payer.valid(f.now) and (payer.fraud_count >= 1 or payer.open_reports >= 1))
-        return 0 if duplicate else args["points"], None
+        points = args["points"]
+        if duplicate:
+            points = max(0, points - dict(p.parameters_for("PAYER_DICT_ADVERSE"))["points"])
+        return points, None
 
 
 def dict_restricted(f, p, args, *, role):

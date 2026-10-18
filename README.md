@@ -103,8 +103,8 @@ nome em `-p`. Migrations são exercitadas em bancos aleatórios adicionais,
 criados e removidos no servidor de testes (o usuário local de testes precisa
 poder criar bancos). A API não ganha endpoints administrativos para isso.
 
-Execução local desta etapa: **186 testes passaram** (83 da etapa anterior +
-103 testes puros novos), incluindo os 35 testes HTTP originais. A comparação
+Execução local desta etapa: **214 testes passaram** (83 da etapa anterior +
+131 testes puros), incluindo os 35 testes HTTP originais. A comparação
 separada reproduziu **59 observações** e **2.000 contextos** com decisão completa
 igual à referência V3. O CI faz essa comparação montando as fontes somente
 para leitura no container de testes. Esses números não comprovam HTTP/Pix,
@@ -160,8 +160,11 @@ a garantia de persistência/replay será integrada nas próximas etapas.
 A API carrega `src/antifraud/policies.json` no startup. O catálogo contém apenas
 o tenant sintético `demo`; tenant desconhecido falha sem herdar configuração.
 Isso ainda não liga tenant à credencial HTTP. Para mudar a configuração, editar
-o arquivo e reconstruir a imagem. `PIX_POLICY_FILE` é um caminho **dentro da
-imagem**, sem recarga dinâmica. Configuração ausente ou inválida impede o startup.
+o arquivo e reconstruir a imagem. O `.env.example` deixa `PIX_POLICY_FILE`
+comentado: o padrão relativo ao pacote funciona no host e no container. Se
+definir um caminho alternativo, ele deve existir no ambiente onde o processo
+roda; no Compose, dentro da imagem. Sem recarga dinâmica. Configuração ausente
+ou inválida impede o startup.
 Pesos não negativos são parametrizados; os pisos de restrição e revogação
 permanecem no código. Novo critério exige código e testes.
 
@@ -171,6 +174,10 @@ Com o venv de desenvolvimento instalado, os testes puros não exigem banco:
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests/unit -p 'test_pix*.py' -q
 PYTHONPATH=src .venv/bin/python tests/reference/verify_pix_reference.py
 ```
+
+[Correções da revisão da PR 2](docs/CORRECOES-REVISAO-PR2.md): achados,
+regressões e decisões. O DTO agora recebe a `Decision` pronta, e a auditoria
+privada retém o IP inválido para reproduzir o hash.
 
 [Documentação do motor](docs/motor-pix.md): interfaces, configuração,
 auditoria, limites e mapa dos critérios. O `Simulator` existe somente nas

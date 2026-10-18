@@ -182,6 +182,10 @@ prometer funcionalidade que não foi exercitada.
 
 ## Gate de cada etapa
 
+Correções e comportamentos novos seguem TDD: teste reproduzindo a falha,
+correção mínima e refatoração com suíte verde. Para comportamento já correto
+sem cobertura, registrar que o teste começou verde, sem fabricar um bug.
+
 Uma branch e PR por vez, commits Conventional Commits em inglês e sem
 Co-Authored-By. Testar, revisar o próprio diff, atualizar README e registrar
 comandos/resultados/limites antes de abrir PR no origin conferido. Publicar o

@@ -44,12 +44,12 @@ class FixtureProviders:
     def lookup_dict(self, document: str, asof: datetime, role: str) -> DictEvidence:
         self.calls.append((role, document, asof))
         if self.down:
-            return DictEvidence(document, "unavailable", asof, asof, asof + timedelta(seconds=self.ttl_seconds))
+            return DictEvidence(document, "unavailable", asof, asof, asof + timedelta(seconds=self.ttl_seconds), provenance="synthetic_fixture")
         known = [e for e in self.dict_fixtures.get(document, []) if e.available_at <= asof and e.observed_at <= asof]
         if known:
             result = max(known, key=lambda e: (e.observed_at, e.source_version))
             return result if result.valid(asof) else replace(result, state="stale")
-        return DictEvidence(document, "not_covered", asof, asof, asof + timedelta(seconds=self.ttl_seconds))
+        return DictEvidence(document, "not_covered", asof, asof, asof + timedelta(seconds=self.ttl_seconds), provenance="synthetic_fixture")
 
     def lookup_security(self, pix: Pix, asof: datetime) -> SecuritySnapshot:
         self.security_calls += 1

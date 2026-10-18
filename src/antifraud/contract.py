@@ -27,7 +27,7 @@ SCHEMA = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
 Draft202012Validator.check_schema(SCHEMA)
 _VALIDATOR = Draft202012Validator(SCHEMA)
 _TIMESTAMP = re.compile(
-    r"[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-9]{2}"
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt](?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):(?P<second>[0-9]{2})"
     r"(?:\.[0-9]{1,6})?(?P<offset>[Zz]|[+-][0-9]{2}:[0-9]{2})"
 )
 _CNPJ_WEIGHTS = (
@@ -53,6 +53,7 @@ class NormalizedPayload:
     _payload_json: str
     payload_hash: str
     data_quality: tuple[str, ...]
+    invalid_ip_raw: str | None = None
 
     @property
     def canonical_payload(self) -> dict[str, Any]:
@@ -185,6 +186,8 @@ def _timestamp(raw: str, path: str) -> datetime:
     match = _TIMESTAMP.fullmatch(raw)
     if match is None:
         raise ValidationError(400, "QIT000001", "Timestamp fora do formato.", path)
+    if int(match.group("hour")) > 23 or int(match.group("minute")) > 59 or int(match.group("second")) > 59:
+        raise ValidationError(422, "QIT002004", "Horario invalido.", path)
     offset = match.group("offset")
     # fromisoformat aceita e carrega minutos como +01:60 para +02:00.
     # Essa permissividade nao pode transformar uma data invalida em replay.
@@ -295,5 +298,5 @@ def normalize_payload(payload: dict[str, Any]) -> NormalizedPayload:
     )
     return NormalizedPayload(
         json.dumps(canonical, ensure_ascii=True, sort_keys=True, separators=(",", ":"), allow_nan=False),
-        sha256(canonical_json.encode("utf-8")).hexdigest(), quality,
+        sha256(canonical_json.encode("utf-8")).hexdigest(), quality, invalid_ip_raw,
     )

@@ -31,7 +31,9 @@ docker compose -p pix-pr2-test -f compose.test.yml up --build --abort-on-contain
 docker compose -p pix-pr2-test -f compose.test.yml down -v --remove-orphans
 ```
 
-**186 passaram em 4,49 s**, sem skips/xfails (83 anteriores + 103 testes puros).
+Snapshot inicial `c6b7eb5`: **186 passaram em 4,49 s**. Após as correções da
+revisão: **214 passaram em 4,85 s**, sem skips/xfails (83 anteriores + 131 puros).
+[Relatório das correções](CORRECOES-REVISAO-PR2.md).
 Inclui startup válido/inválido em subprocesso e o HTTP/PostgreSQL do exemplo
 original, sem enfraquecer a guarda de ambiente. A duração e o check Linux do
 commit submetido devem ser conferidos na PR. O pytest completo continua
@@ -43,7 +45,7 @@ A suíte pura também roda sem PostgreSQL ou API, com dependências de dev:
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests/unit -p 'test_pix*.py' -q
 ```
 
-**103 passaram**. Dois testes importam a aplicação em subprocesso com URL de
+**131 passaram**. Dois testes importam a aplicação em subprocesso com URL de
 banco deliberadamente inacessível: importar/carregar configuração não consulta
 o banco. Um caso inválido aborta com `PolicyConfigurationError` antes de servir;
 o válido verifica catálogo e preservação das rotas existentes, sem rota Pix.
@@ -55,10 +57,12 @@ o válido verifica catálogo e preservação das rotas existentes, sem rota Pix.
 | `test_contrato_pix`: 27 ContractTests + 9 StrictJsonTests | `tests/unit/test_pix_contract.py`: 36 | Mesmos métodos/asserts usando `antifraud.contract` e schema de runtime | Parsing da biblioteca; ainda sem HTTP Pix |
 | `test_politica_pix.PolicyTests`: 36 | `tests/unit/test_pix_policy_reference.py`: 36 | Mesmos invariantes usando tipos/motor de produção e montagem de contexto em `tests/support` | Histórico e eventos fornecidos em memória |
 | `test_politica_pix.OrchestrationTests`: 20 | Não portados como comportamento de produção | Continuam executáveis somente na referência original | DICT inicial/cache/versões: PR 3; eventos/storage: PR 4; idempotência/reserva/HTTP: PRs 4/5 |
-| Novos testes da PR 2 | 31 | `test_pix_engine.py` e `test_pix_configuration.py` | Biblioteca e configuração/startup; não integração bancária |
+| Novos testes da PR 2 | 59 (31 iniciais + 28 de revisão) | `test_pix_engine.py`, `test_pix_configuration.py` e `test_pix_review_regressions.py` | Biblioteca e configuração/startup; não integração bancária |
 
-Nomes e asserts dos 72 métodos portados são preservados; só imports,
-docstrings e a delimitação das classes mudaram. Os 20 testes sequenciais de
+Nomes e asserts dos 72 métodos portados são preservados. Na revisão, as
+fixtures passaram a informar `provenance`; o teste de escopo foi ajustado para
+construir conta do tipo correto com identificador diferente. Tipos incompatíveis
+agora são testados como erro de construção na nova suíte de regressões. Os 20 testes sequenciais de
 orquestração não são substitutos dos testes concorrentes/PostgreSQL futuros.
 `tests/support/pix_scenarios.py` reaproveita somente montagem de fixtures,
 cenários e simulador sequencial para alimentar o motor **de produção**.
@@ -84,14 +88,20 @@ PYTHONPATH=src .venv/bin/python tests/reference/verify_pix_reference.py
 - **59 observações** do motor portado iguais ao JSON arquivado, campo a campo.
 - **2.000 contextos**, semente `20261018`, comparados com `evaluate` V3 original:
   `Decision` completa igual, incluindo ordem de motivos, pontos/pisos, famílias,
-  score, C_pre e features públicas. Varia PF/identidades, tenants de histórico,
-  quantias, horários, janelas, estados de segurança/DICT, eventos e maturidade.
+  score, C_pre e features públicas. O Pix atual é sempre PF A → PF B, titulares
+  distintos e mesmo destino. Variam quantias, hora do Pix, idade da conta destino,
+  tamanho/horários/status/device do histórico, outras contas PF/tenant no histórico,
+  ocorrência/conhecimento de eventos, validade/estado de segurança e DICT e
+  contadores de fraude/relatos. `decision_at == transaction_date`, consulta nos
+  dois papéis, sem recuperação ou restrição no gerador. PJ, mesmo titular,
+  restrições, consultas parciais e relógios distintos têm testes de invariantes;
+  recuperação ganhou sete testes independentes nesta revisão.
   O gerador diferencial não cobre todas as combinações nem prova ausência de bugs.
 
 No container, **reconstruir antes** e montar as fontes somente para leitura:
 
 ```bash
-docker compose -p pix-pr2-test -f compose.test.yml run --rm -v "$PWD/docs/contexto:/reference:ro" tests python tests/reference/verify_pix_reference.py --reference-dir /reference
+docker compose -p pix-pr2-test -f compose.test.yml run --rm --no-deps -v "$PWD/docs/contexto:/reference:ro" tests python tests/reference/verify_pix_reference.py --reference-dir /reference
 ```
 
 A imagem exclui `docs/contexto`, que é somente oráculo documental desse comando.
@@ -120,3 +130,9 @@ e têm asserts próprios, sem forçar igualdade com bugs da referência.
 A próxima etapa permanece bloqueada pela revisão e aprovação desta PR.
 Os comentários da revisão serão respondidos individualmente no GitHub com
 correção/justificativa, commit e evidências, conforme regra do projeto.
+
+A revisão foi tratada com testes antes das correções: 28 métodos novos,
+37 falhas de subcasos e quatro erros esperados no SHA anterior. Os sete testes
+de recuperação passaram desde o início (lacuna de cobertura, comportamento
+correto); remover o critério em memória faz os sete falharem. Não se trata de
+uma campanha abrangente de mutation testing. Detalhes no relatório de correções.

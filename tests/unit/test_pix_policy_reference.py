@@ -39,7 +39,7 @@ def add_security(sim, pix, state="registered", trusted=False, **kwargs):
 
 def evidence(document, **kwargs):
     return DictEvidence(document, "available", BASE-timedelta(minutes=1), BASE-timedelta(minutes=1),
-                        BASE+timedelta(minutes=4), **kwargs)
+                        BASE+timedelta(minutes=4), **kwargs, provenance="synthetic_fixture")
 
 
 def history(pix, status=APPROVED, challenge=None, device="registered", qualifies=False, decision_at=None):
@@ -243,7 +243,8 @@ class PolicyTests(unittest.TestCase):
                 r = Restriction(document, role, BASE-timedelta(hours=1), BASE-timedelta(hours=1), BASE+timedelta(hours=1))
                 sim.providers.dict_fixtures[document] = [evidence(document, restrictions=(r,))]
                 self.assertEqual(sim.analyze(p, BASE).decision.status, REJECTED)
-                wrong = replace(r, account=replace(p.destination, account="different"))
+                scoped_account = p.payer if role == "payer" else p.destination
+                wrong = replace(r, account=replace(scoped_account, account="different"))
                 self.assertFalse(wrong.applies(p, role, BASE))
 
     def test_security_revocation_uses_decision_clock_and_no_dict_gate_override(self):

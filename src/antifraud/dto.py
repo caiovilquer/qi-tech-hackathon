@@ -6,9 +6,8 @@ import json
 from uuid import UUID
 
 from antifraud.adapter import to_pix
-from antifraud.context import Context
+from antifraud.context import Context, Decision
 from antifraud.contract import NormalizedPayload
-from antifraud.engine import evaluate
 from antifraud.features import build_features
 from antifraud.policy import Policy
 
@@ -41,12 +40,13 @@ class PixTransactionDTO:
         return json.loads(self.audit_json)
 
     @classmethod
-    def analyze(cls, key: str, normalized: NormalizedPayload, context: Context, policy: Policy):
+    def from_decision(cls, key: str, normalized: NormalizedPayload, context: Context, policy: Policy, decision: Decision):
         # Key and decision time are supplied by the caller, never a global clock.
         key = str(UUID(key))
         if context.pix != to_pix(normalized, context.pix.payer.tenant):
             raise ValueError("Context Pix does not match the normalized official payload")
-        decision = evaluate(context, policy)
+        if decision.policy_version != policy.version:
+            raise ValueError("Decision policy version does not match the audit policy")
         features = build_features(context, policy)
         evidence = dict(context.dict_evidence)
         actions = dict(context.dict_actions)
@@ -68,6 +68,7 @@ class PixTransactionDTO:
         audit = {
             "key": key, "tenant": context.pix.payer.tenant, "pix_id": context.pix.id,
             "payload": normalized.canonical_payload, "payload_hash": normalized.payload_hash,
+            "invalid_ip_raw": normalized.invalid_ip_raw,
             "data_quality": normalized.data_quality, "decision_at": context.decision_at,
             "policy": {"version": policy.version, "fingerprint": policy.fingerprint, **policy.configuration()},
             "decision": asdict(decision), "security": asdict(context.security) if context.security else None,

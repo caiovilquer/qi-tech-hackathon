@@ -1,7 +1,7 @@
 """Immutable inputs and decisions for the pure Pix engine; no I/O or clock."""
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from datetime import datetime, timezone
 import re
 
@@ -96,12 +96,14 @@ class Pix(ImmutableValue):
     amount_cents: int
     transaction_at: datetime
     destination_opened_at: datetime
-    device_id: str = "dev-1"
+    device_id: str
 
     def __post_init__(self) -> None:
         super().__post_init__()
         if type(self.amount_cents) is not int or self.amount_cents <= 0:
             raise ValueError("amount_cents must be a positive integer")
+        if not self.device_id:
+            raise ValueError("device_id must be explicit and nonempty")
         supported_time(self.transaction_at, "transaction_at")
         aware(self.destination_opened_at)
         for document in (self.payer.document, self.payee_document):
@@ -156,6 +158,15 @@ class Restriction(ImmutableValue):
     active: bool = True
     account: AccountKey | DestinationKey | None = None
 
+    def __post_init__(self):
+        super().__post_init__()
+        if self.account is None:
+            return
+        expected = {"payer": AccountKey, "payee": DestinationKey}.get(self.role)
+        # `both` is document-wide. A scoped restriction names one explicit role.
+        if expected is None or not isinstance(self.account, expected):
+            raise ValueError("Restriction account type must match its role; both requires account=None")
+
     def applies(self, pix: Pix, role: str, now: datetime) -> bool:
         account = pix.payer if role == "payer" else pix.destination
         document = pix.payer.document if role == "payer" else pix.payee_document
@@ -192,8 +203,13 @@ class DictEvidence(ImmutableValue):
     fraud_count: int = 0
     open_reports: int = 0
     restrictions: tuple[Restriction, ...] = ()
-    provenance: str = "synthetic_fixture"
+    provenance: str = field(kw_only=True)
     source_version: int = 0
+
+    def __post_init__(self):
+        super().__post_init__()
+        if not self.provenance.strip():
+            raise ValueError("Evidence provenance must be explicit and nonblank")
 
     def valid(self, now: datetime) -> bool:
         return (self.state == "available" and self.observed_at <= now
@@ -245,6 +261,12 @@ class Context(ImmutableValue):
         if len(dict(self.dict_actions)) != len(self.dict_actions) or any(role not in ("payer", "payee") or action not in
                 ("queried", "cache", "skipped_after_initial", "skipped_confidence") for role, action in self.dict_actions):
             raise ValueError("Invalid enrichment action")
+        evidence = dict(self.dict_evidence)
+        for role, action in self.dict_actions:
+            if (role in self.dict_queried) != (action == "queried"):
+                raise ValueError("Enrichment action contradicts queried roles")
+            if action == "cache" and (role not in evidence or not evidence[role].valid(self.decision_at)):
+                raise ValueError("Cache action requires valid evidence for its role")
 
 
 @dataclass(frozen=True)
