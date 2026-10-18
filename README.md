@@ -1,8 +1,8 @@
 # Antifraude Pix
 
 Implementação em etapas sobre a Base API do Bootcamp QI Tech. **Estado atual:
-PRs 1, 2 e 3 aprovadas e mergeadas; a próxima etapa é a PR 4
-(`feat/pix-storage`), ainda não iniciada.** A API de exemplo funciona com
+PRs 1, 2 e 3 aprovadas e mergeadas; etapa 4 de persistência interna
+(`feat/pix-storage`) implementada, aguardando revisão.** A API de exemplo funciona com
 PostgreSQL real; os endpoints Pix ainda não estão disponíveis.
 O [plano de implementação](PLANO-IMPLEMENTACAO.md) define as próximas PRs e os
 critérios de aceitação. Cada etapa depende de revisão e aprovação da anterior.
@@ -38,11 +38,11 @@ reconciliação de execuções bancárias sem fabricar solicitações da API.
 [Interfaces e limites](docs/providers-pix.md), [evidências/TDD](docs/validacao-pr3.md)
 e [correções da re-revisão](docs/CORRECOES-REREVISAO-PR3.md).
 
-Não há endpoints/análises persistidas Pix, idempotência Pix ou integração
-externa real até aqui. Os tipos de eventos são entradas do motor; ingestão e
-persistência bancária pertencem às próximas PRs. As rotas de exemplo não
-fazem parte do contrato Pix. O health check mede liveness da API e não
-confirma disponibilidade do banco.
+Há persistência e idempotência internas Pix, além de ingestão de eventos
+bancários vinculados. As rotas Pix e a integração completa com os providers
+ficam na etapa 5. Não há integração externa real com banco/DICT. As rotas de
+exemplo não fazem parte do contrato Pix. O health check mede liveness da API;
+não confirma disponibilidade do banco.
 
 ## Como rodar
 
@@ -111,12 +111,12 @@ nome em `-p`. Migrations são exercitadas em bancos aleatórios adicionais,
 criados e removidos no servidor de testes (o usuário local de testes precisa
 poder criar bancos). A API não ganha endpoints administrativos para isso.
 
-Execução local após revisão: **312 testes passaram** (83 HTTP/PostgreSQL da base +
-229 testes puros), incluindo os 35 testes HTTP originais. A comparação
+Execução local da etapa 4: **354 testes passaram** (83 anteriores HTTP/PostgreSQL,
+229 puros anteriores e 42 casos novos de storage/codec), incluindo os 35 testes HTTP originais. A comparação
 separada reproduziu **59 observações** e **2.000 contextos** com decisão completa
 igual à referência V3. O CI faz essa comparação montando as fontes somente
-para leitura no container de testes. Esses números não comprovam HTTP/Pix,
-concorrência Pix ou eficácia. Ver [evidências da PR 3](docs/validacao-pr3.md).
+para leitura no container de testes. A etapa 4 testa concorrência dos componentes internos, não do fluxo HTTP Pix
+completo nem eficácia da política. Ver [evidências da etapa 4](docs/validacao-pr4.md).
 
 Para um ambiente Python local opcional:
 
@@ -199,6 +199,22 @@ privada retém o IP inválido para reproduzir o hash.
 auditoria, limites e mapa dos critérios. O `Simulator` existe somente nas
 fontes e no harness dos testes; não é repository da aplicação.
 
+## Persistência interna Pix — etapa 4
+
+A migration `0002_pix_storage.sql` acrescenta claims, checagem inicial, Pix,
+análise imutável, receipts, eventos, vínculos e cache versionado. O serviço
+`controllers.pix_storage.PixStorage` coordena as transações; repositories não
+dão commit. Reservas de operação e origem têm leases de 10 s e fencing próprios;
+locks advisory de origem/destino são ordenados pelos IDs numéricos efetivos.
+GET/replay internos devolvem exatamente o DTO persistido; eventos não reescrevem
+análise, autenticação não registra device e execução não muda decisão antifraude.
+
+[Contrato, protocolo e limites](docs/storage-pix.md),
+[testes e TDD](docs/validacao-pr4.md),
+[prompt independente](docs/REVISAO-PR4.md).
+“Etapa 4” corresponde ao plano, não à PR #4 de docs já mergeada.
+Sem rotas Pix nesta etapa; o serviço interno exige o chamador autorizado.
+
 ## Providers e enriquecimento
 
 `Enricher.enrich` é uma biblioteca assíncrona que recebe Context, Policy, deadline
@@ -207,8 +223,9 @@ segurança bancária atual e pagamentos confirmados; consulta DICT do destinatá
 quando `C_pre < 80`, aproveitando evidência vigente inclusive com C_pre alto.
 O resultado conserva cobertura e proveniência na auditoria privada.
 
-Essa pré-condição ainda não é garantida por PostgreSQL: leases/fencing e
-persistência do resultado inicial/cache pertencem à PR 4. Os adapters atuais
+A etapa 4 fornece claims com leases/fencing e persistência do resultado
+inicial/cache em PostgreSQL. A integração HTTP/enriquecimento sob esse
+protocolo e o deadline completo pertencem à etapa 5. Os adapters atuais
 são fixtures explícitas, determinísticas e sem rede; não simulam integração
 com o DICT real. Não há cache global ou registro de dispositivo por observação.
 

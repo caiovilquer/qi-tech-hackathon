@@ -7,9 +7,18 @@ Caches, ambientes virtuais e temporários ficaram fora do Git.
 
 ## Estado atual
 
-As PRs 1, 2 e 3 foram aprovadas e mergeadas; `main` está em `1e233ee`.
-A PR 4 (`feat/pix-storage`) ainda não foi iniciada. Para revisar o que já
-existe, seguir os históricos abaixo, do mais recente ao mais antigo.
+As PRs 1, 2 e 3 e a PR #4 de documentação foram mergeadas. A etapa 4
+(`feat/pix-storage`) parte de `origin/main` d7cdce8 e está em revisão.
+“PR 4” no plano identifica a etapa; o número GitHub da PR de implementação
+é diferente por causa da PR adicional de docs.
+
+## Revisão da etapa 4
+
+1. [Prompt independente](REVISAO-PR4.md), [plano](../PLANO-IMPLEMENTACAO.md)
+   e [README](../README.md).
+2. [Persistência e protocolo](storage-pix.md) e [evidências/TDD](validacao-pr4.md).
+3. Guia V3 §§4, 5.3, 7 e 8; enunciado e fontes abaixo. Migrations anteriores
+   são imutáveis; schema novo em 0002_pix_storage.sql. Não há rotas Pix nesta etapa.
 
 ## Histórico da PR 3
 

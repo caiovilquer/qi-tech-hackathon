@@ -4,8 +4,10 @@ Referência vigente: guia V3 de 17/10/2026, política `pix-experimental-v3`.
 Estado: PR 1 aprovada e mergeada em `c35005af40590fe9b60023ab29ac62d85bb9ff0f`.
 PR 2 aprovada e mergeada em `1971e51fad28c38ad7e198db78f9ab73a1837b14`.
 PR 3 aprovada e mergeada em `1e233ee4e5a02b3d7e7818eff1b1a27089690978`.
-Próxima etapa: PR 4 (`feat/pix-storage`), não iniciada; começa somente após
-aprovação explícita. Ainda não há endpoints Pix ou persistência de análises.
+Etapa 4 implementada para revisão independente: `feat/pix-storage`, a partir de
+`origin/main` d7cdce8 (PR 3 + PR #4 de documentação). A PR desta etapa terá
+numeração GitHub própria; “PR 4” nas seções abaixo identifica a etapa do plano.
+Há persistência interna Pix testada; os endpoints Pix continuam na etapa 5.
 
 ## Fontes e precedência
 
@@ -150,6 +152,9 @@ coordenação conduzidas pelo serviço. Análise/DTO atômicos e imutáveis.
 fencing; rollback entre inserts; eventos em ordem invertida/conflitantes;
 migrations vazia/existente; índices/consultas de janela limitadas. **Riscos:**
 ordem de locks, colisões, sessão após erro, adoção de eventuais schemas antigos.
+
+**Entrega da etapa 4:** [storage e protocolo](docs/storage-pix.md),
+[evidências](docs/validacao-pr4.md) e [prompt independente](docs/REVISAO-PR4.md).
 
 ### PR 5 — `feat/pix-api`: fluxo HTTP completo e concorrente
 

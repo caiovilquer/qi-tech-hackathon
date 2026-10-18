@@ -20,7 +20,7 @@ checkout; não é um mecanismo de SQL enviado pelo cliente.
 O lock espera até 10 s; cada statement tem timeout de 30 s. Timeouts fazem a
 operação falhar sem sucesso parcial. O operador deve verificar a causa e
 repetir. Não há polling infinito ou reparo silencioso. Os locks de migração
-não são o protocolo de concorrência Pix, que pertence a outra etapa.
+são distintos do protocolo de concorrência Pix de [storage-pix.md](storage-pix.md).
 
 Migrations não podem conter COMMIT/ROLLBACK, operações não transacionais
 (como CREATE INDEX CONCURRENTLY) ou efeitos externos. São scripts de schema
@@ -40,7 +40,9 @@ docker compose up -d --build --wait
 ```
 
 PostgreSQL inicia sem initializer do schema. O serviço `migrate` cria as três
-tabelas da base e os quatro status; a API depende de sua conclusão com sucesso.
+tabelas da base e os quatro status (0001), seguidos das dez tabelas internas
+Pix, índices, constraints e guards de imutabilidade (0002). A API depende da
+conclusão com sucesso; isso não habilita rotas Pix.
 O volume nomeado passa a preservar os dados. A API em si não executa DDL.
 
 ## Banco já inicializado pela Base API
@@ -89,3 +91,26 @@ upgrade com dados existentes, adoção, drift, execução repetida/concorrente,
 checksum, histórico desconhecido e rollback do lote. Não usa SQLite.
 `database/database.sql` continua como arquivo original da base, mas os resets
 de testes e a inicialização atual aplicam as migrations.
+
+## 0002 — persistência interna Pix
+
+Acrescenta pix_account, analysis_claim, source_initial_check, pix_transaction,
+risk_analysis, request_receipt, bank_challenge, bank_operation_link, bank_event
+e provider_snapshot. Não modifica tabelas/dados da base. Um banco versionado
+em 0001 recebe só 0002; banco legado validado recebe adoção de 0001 e criação
+de 0002 na mesma transação. Constraints/FKs carregam tenant; a unique de
+idempotência se chama uq_pix_tenant_external_id.
+
+Valores financeiros usam BIGINT em centavos; tempos usam TIMESTAMPTZ e
+conhecimento de ingestão fica separado da ocorrência. Triggers proíbem
+UPDATE/DELETE dos fatos originais, de análises e de reservas concluídas;
+o hash reservado de uma operação nunca é alterado. Cache é material derivado:
+metadados de mesmo fato podem conservar primeiro conhecimento/staleness,
+sem renovar validade nem apagar versões antigas.
+
+A migration não deve ser reaplicada/editada depois de publicada. Os testes
+adversariais do runner fixam sua DDL-base 0001 para poder adicionar uma 0002
+sintética; a suíte nova verifica a cadeia real completa, upgrade de 0001,
+adoção de legado, tipos/modelos e funcionamento dos componentes Pix.
+Não aplicar ao ambiente de uso para “testar”; compose.test.yml cria banco
+isolado e os testes novos usam bancos aleatórios adicionais nesse servidor.
