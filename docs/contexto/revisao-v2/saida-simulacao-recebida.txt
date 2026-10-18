@@ -1,0 +1,77 @@
+
+=== Exemplo oficial (22h15, R$1.500, destino aberto há 7 dias, primeiro contato)
+  17/10 22:15 R$   1,500 -> two_factor_required  score=25  Limite=15 Contraparte=10 | LOW_HISTORY_EXPOSURE+15, RECENT_PAYEE_ACCOUNT+10, piso:NIGHT_SOFT_LIMIT->two_factor_required
+  17/10 22:15 R$   1,500 -> two_factor_required  score=25  Limite=15 Contraparte=10 | LOW_HISTORY_EXPOSURE+15, RECENT_PAYEE_ACCOUNT+10, piso:NIGHT_SOFT_LIMIT->two_factor_required
+  17/10 22:15 R$   1,500 -> rejected             score=25  Limite=15 Contraparte=10 | LOW_HISTORY_EXPOSURE+15, RECENT_PAYEE_ACCOUNT+10, piso:NIGHT_SOFT_LIMIT->two_factor_required, piso:NIGHT_HARD_LIMIT->rejected
+
+=== Mesmo payload às 14h
+  17/10 14:00 R$   1,500 -> approved             score=25  Limite=15 Contraparte=10 | LOW_HISTORY_EXPOSURE+15, RECENT_PAYEE_ACCOUNT+10
+
+=== CPF da banca, desconhecido: R$50 às 14h para conta antiga
+  17/10 14:00 R$      50 -> approved             score=0    | 
+
+=== Aluguel: 1º mês pede 2FA, cliente confirma (webhook), meses seguintes passam; 6º mês às 22h
+  20/05 10:00 R$   2,500 -> two_factor_required  score=40  Perfil=30 Contraparte=10 | AMOUNT_ABOVE_PROFILE+30, NEW_PAYEE+10
+  19/06 10:00 R$   2,500 -> approved             score=0    | 
+  19/07 10:00 R$   2,500 -> approved             score=0    | 
+  18/08 10:00 R$   2,500 -> approved             score=0    | RECURRING_PAYEE-20
+  17/09 10:00 R$   2,500 -> approved             score=0    | RECURRING_PAYEE-20
+  17/10 10:00 R$   2,500 -> approved             score=0    | RECURRING_PAYEE-20
+  16/11 22:00 R$   2,500 -> two_factor_required  score=0    | RECURRING_PAYEE-20, piso:NIGHT_SOFT_LIMIT->two_factor_required
+
+=== Aluguel sem webhook: 2FA nunca confirmado, o motor não aprende
+  19/07 10:00 R$   2,500 -> two_factor_required  score=40  Perfil=30 Contraparte=10 | AMOUNT_ABOVE_PROFILE+30, NEW_PAYEE+10
+  18/08 10:00 R$   2,500 -> two_factor_required  score=40  Perfil=30 Contraparte=10 | AMOUNT_ABOVE_PROFILE+30, NEW_PAYEE+10
+  17/09 10:00 R$   2,500 -> two_factor_required  score=40  Perfil=30 Contraparte=10 | AMOUNT_ABOVE_PROFILE+30, NEW_PAYEE+10
+
+=== Fracionamento na virada da noite: R$900 às 23h50 + R$900 às 0h10
+  17/10 23:50 R$     900 -> approved             score=25  Perfil=15 Contraparte=10 | AMOUNT_ABOVE_PROFILE+15, NEW_PAYEE+10
+  18/10 00:10 R$     900 -> two_factor_required  score=35  Montante=20 Perfil=15 | DAILY_AMOUNT+20, AMOUNT_ABOVE_PROFILE+15, piso:NIGHT_SOFT_LIMIT->two_factor_required
+
+=== Tomada de conta: aparelho novo + destino de 3 dias + 7x o maior Pix (14h)
+  17/10 14:00 R$   2,800 -> rejected             score=85  Perfil=30 Contraparte=35 Acesso=20 | AMOUNT_ABOVE_PROFILE+30, RECENT_PAYEE_ACCOUNT+25, NEW_PAYEE+10, DEVICE_CHANGE+20, piso:DEVICE_CHANGE->two_factor_required
+
+=== Idem, com o aparelho novo autorizado no mock de cadastro
+  17/10 14:00 R$   2,800 -> two_factor_required  score=65  Perfil=30 Contraparte=35 | AMOUNT_ABOVE_PROFILE+30, RECENT_PAYEE_ACCOUNT+25, NEW_PAYEE+10
+
+=== Conta segura: R$5.000 para conta própria aberta há 2 dias — de dia e à noite
+  17/10 14:00 R$   5,000 -> two_factor_required  score=55  Perfil=15 Contraparte=40 | AMOUNT_ABOVE_PROFILE+15, RECENT_PAYEE_ACCOUNT+25, SELF_TRANSFER_NEW_ACCOUNT+15
+
+=== (à noite)
+  17/10 23:00 R$   5,000 -> rejected             score=55  Perfil=15 Contraparte=40 | AMOUNT_ABOVE_PROFILE+15, RECENT_PAYEE_ACCOUNT+25, SELF_TRANSFER_NEW_ACCOUNT+15, piso:NIGHT_HARD_LIMIT->rejected
+
+=== Coação: R$5.000 às 23h para favorecido novo com conta antiga (laranja)
+  17/10 23:00 R$   5,000 -> rejected             score=40  Perfil=30 Contraparte=10 | AMOUNT_ABOVE_PROFILE+30, NEW_PAYEE+10, piso:NIGHT_SOFT_LIMIT->two_factor_required, piso:NIGHT_HARD_LIMIT->rejected
+
+=== Coação: 4 x R$1.000 às 23h para quatro contas antigas diferentes
+  17/10 23:00 R$   1,000 -> approved             score=25  Perfil=15 Contraparte=10 | AMOUNT_ABOVE_PROFILE+15, NEW_PAYEE+10
+  17/10 23:05 R$   1,000 -> two_factor_required  score=45  Montante=20 Perfil=15 Contraparte=10 | DAILY_AMOUNT+20, AMOUNT_ABOVE_PROFILE+15, NEW_PAYEE+10, piso:NIGHT_SOFT_LIMIT->two_factor_required
+  17/10 23:10 R$   1,000 -> rejected             score=75  Velocity=20 Montante=30 Perfil=15 Contraparte=10 | NEW_PAYEE_FANOUT+20, DAILY_AMOUNT+20, STRUCTURING+30, AMOUNT_ABOVE_PROFILE+15, NEW_PAYEE+10, piso:NIGHT_SOFT_LIMIT->two_factor_required
+  17/10 23:15 R$   1,000 -> rejected             score=75  Velocity=20 Montante=30 Perfil=15 Contraparte=10 | NEW_PAYEE_FANOUT+20, DAILY_AMOUNT+20, STRUCTURING+30, AMOUNT_ABOVE_PROFILE+15, NEW_PAYEE+10, piso:NIGHT_SOFT_LIMIT->two_factor_required
+
+=== Conta-mula recebendo: destino de 10 dias, 6º pagador em 24h, R$800
+  17/10 15:00 R$     800 -> two_factor_required  score=50  Contraparte=50 | RECENT_PAYEE_ACCOUNT+10, MULE_FAN_IN+40
+
+=== Idem, com marcações de mula de 2 PSPs no mock do DICT
+  17/10 15:00 R$     800 -> rejected             score=50  Contraparte=50 | RECENT_PAYEE_ACCOUNT+10, MULE_FAN_IN+40, piso:COUNTERPARTY_RESTRICTED->rejected
+
+=== Rateio: 5 amigos x R$40 para conta antiga
+  17/10 20:04 R$      40 -> approved             score=0    | 
+
+=== Estruturação: 3 x R$990 no mesmo dia, pagador sem histórico
+  17/10 09:00 R$     990 -> approved             score=0    | 
+  17/10 13:00 R$     990 -> approved             score=0    | 
+  17/10 18:00 R$     990 -> two_factor_required  score=30  Montante=30 | STRUCTURING+30
+
+=== Rajada: 10 Pix de R$50 em 9 minutos para pessoas diferentes
+  17/10 15:03 R$      50 -> approved             score=0    | 
+  17/10 15:04 R$      50 -> two_factor_required  score=30  Velocity=30 | VELOCITY_BURST+30
+  17/10 15:09 R$      50 -> rejected             score=0    | piso:VELOCITY_BURST->rejected
+
+=== Folha PJ: 20 salários de R$2.500 em 10 minutos, mês 1 e mês 2
+  mês -30: approvedx20
+  mês   0: approvedx20
+
+=== Mock do DICT fora do ar
+  17/10 14:00 R$      50 -> approved             score=10  Contraparte=10 | COUNTERPARTY_CHECK_UNAVAILABLE+10
+  17/10 14:00 R$   1,500 -> two_factor_required  score=35  Limite=15 Contraparte=20 | LOW_HISTORY_EXPOSURE+15, RECENT_PAYEE_ACCOUNT+10, COUNTERPARTY_CHECK_UNAVAILABLE+10

@@ -1,0 +1,3359 @@
+{
+  "policy": "pix-experimental-v3",
+  "experimental": true,
+  "claims": "fixtures sequenciais; não mede eficácia, integração ou concorrência",
+  "scenarios": [
+    {
+      "scenario": "Exemplo oficial: IDs distintos no mesmo instante",
+      "id": "official-0",
+      "amount_cents": 150000,
+      "decision_at": "2026-10-17T22:15:00-03:00",
+      "status": "two_factor_required",
+      "score": 35,
+      "families": [
+        [
+          "Limite",
+          15
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          20
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "NIGHT_SOFT_LIMIT",
+          "family": "Limite",
+          "points": 0,
+          "floor": "two_factor_required"
+        },
+        {
+          "code": "LOW_HISTORY_EXPOSURE",
+          "family": "Limite",
+          "points": 15,
+          "floor": null
+        },
+        {
+          "code": "RECENT_PAYEE_ACCOUNT",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 25,
+      "c_pre": 35,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Exemplo oficial: IDs distintos no mesmo instante",
+      "id": "official-1",
+      "amount_cents": 150000,
+      "decision_at": "2026-10-17T22:15:00-03:00",
+      "status": "two_factor_required",
+      "score": 35,
+      "families": [
+        [
+          "Limite",
+          15
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          20
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "NIGHT_SOFT_LIMIT",
+          "family": "Limite",
+          "points": 0,
+          "floor": "two_factor_required"
+        },
+        {
+          "code": "LOW_HISTORY_EXPOSURE",
+          "family": "Limite",
+          "points": 15,
+          "floor": null
+        },
+        {
+          "code": "RECENT_PAYEE_ACCOUNT",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 25,
+      "c_pre": 35,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Exemplo oficial: IDs distintos no mesmo instante",
+      "id": "official-2",
+      "amount_cents": 150000,
+      "decision_at": "2026-10-17T22:15:00-03:00",
+      "status": "rejected",
+      "score": 35,
+      "families": [
+        [
+          "Limite",
+          15
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          20
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "NIGHT_SOFT_LIMIT",
+          "family": "Limite",
+          "points": 0,
+          "floor": "two_factor_required"
+        },
+        {
+          "code": "NIGHT_HARD_LIMIT",
+          "family": "Limite",
+          "points": 0,
+          "floor": "rejected"
+        },
+        {
+          "code": "LOW_HISTORY_EXPOSURE",
+          "family": "Limite",
+          "points": 15,
+          "floor": null
+        },
+        {
+          "code": "RECENT_PAYEE_ACCOUNT",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 25,
+      "c_pre": 35,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Mesmo valor durante o dia",
+      "id": "day",
+      "amount_cents": 150000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "two_factor_required",
+      "score": 35,
+      "families": [
+        [
+          "Limite",
+          15
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          20
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "LOW_HISTORY_EXPOSURE",
+          "family": "Limite",
+          "points": 15,
+          "floor": null
+        },
+        {
+          "code": "RECENT_PAYEE_ACCOUNT",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 25,
+      "c_pre": 35,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Desconhecido legítimo R$50; cobertura externa desconhecida",
+      "id": "cold",
+      "amount_cents": 5000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Aluguel com execução bancária explícita",
+      "id": "rent-0",
+      "amount_cents": 250000,
+      "decision_at": "2026-08-18T14:00:00-03:00",
+      "status": "approved",
+      "score": 25,
+      "families": [
+        [
+          "Limite",
+          15
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "LOW_HISTORY_EXPOSURE",
+          "family": "Limite",
+          "points": 15,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 15,
+      "c_pre": 45,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Aluguel com execução bancária explícita",
+      "id": "rent-1",
+      "amount_cents": 250000,
+      "decision_at": "2026-09-17T14:00:00-03:00",
+      "status": "approved",
+      "score": 25,
+      "families": [
+        [
+          "Limite",
+          15
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "LOW_HISTORY_EXPOSURE",
+          "family": "Limite",
+          "points": 15,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 15,
+      "c_pre": 45,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Aluguel com execução bancária explícita",
+      "id": "rent-2",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Fracionamento na virada da noite",
+      "id": "midnight-0",
+      "amount_cents": 90000,
+      "decision_at": "2026-10-17T23:50:00-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Fracionamento na virada da noite",
+      "id": "midnight-1",
+      "amount_cents": 90000,
+      "decision_at": "2026-10-18T00:10:00-03:00",
+      "status": "two_factor_required",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "NIGHT_SOFT_LIMIT",
+          "family": "Limite",
+          "points": 0,
+          "floor": "two_factor_required"
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Aparelho desconhecido e destino recente",
+      "id": "takeover",
+      "amount_cents": 280000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "rejected",
+      "score": 95,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          30
+        ],
+        [
+          "Acesso",
+          20
+        ],
+        [
+          "Contraparte",
+          45
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "AMOUNT_ABOVE_PROFILE",
+          "family": "Perfil",
+          "points": 30,
+          "floor": null
+        },
+        {
+          "code": "RECENT_PAYEE_ACCOUNT",
+          "family": "Contraparte",
+          "points": 25,
+          "floor": null
+        },
+        {
+          "code": "NEW_PAYEE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        },
+        {
+          "code": "DEVICE_CHANGE",
+          "family": "Acesso",
+          "points": 20,
+          "floor": null
+        },
+        {
+          "code": "DEVICE_POLICY_LIMIT",
+          "family": "Acesso",
+          "points": 0,
+          "floor": "two_factor_required"
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 85,
+      "c_pre": 0,
+      "general_profile": true,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Conta própria recente",
+      "id": "own-14",
+      "amount_cents": 500000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "rejected",
+      "score": 80,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          30
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          50
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "AMOUNT_ABOVE_PROFILE",
+          "family": "Perfil",
+          "points": 30,
+          "floor": null
+        },
+        {
+          "code": "RECENT_PAYEE_ACCOUNT",
+          "family": "Contraparte",
+          "points": 25,
+          "floor": null
+        },
+        {
+          "code": "SELF_TRANSFER_NEW_ACCOUNT",
+          "family": "Contraparte",
+          "points": 15,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 70,
+      "c_pre": 0,
+      "general_profile": true,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Conta própria recente",
+      "id": "own-23",
+      "amount_cents": 500000,
+      "decision_at": "2026-10-17T23:00:00-03:00",
+      "status": "rejected",
+      "score": 80,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          30
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          50
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "NIGHT_HARD_LIMIT",
+          "family": "Limite",
+          "points": 0,
+          "floor": "rejected"
+        },
+        {
+          "code": "AMOUNT_ABOVE_PROFILE",
+          "family": "Perfil",
+          "points": 30,
+          "floor": null
+        },
+        {
+          "code": "RECENT_PAYEE_ACCOUNT",
+          "family": "Contraparte",
+          "points": 25,
+          "floor": null
+        },
+        {
+          "code": "SELF_TRANSFER_NEW_ACCOUNT",
+          "family": "Contraparte",
+          "points": 15,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 70,
+      "c_pre": 0,
+      "general_profile": true,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Coação candidata: destino antigo às 23h",
+      "id": "coercion",
+      "amount_cents": 500000,
+      "decision_at": "2026-10-17T23:00:00-03:00",
+      "status": "rejected",
+      "score": 25,
+      "families": [
+        [
+          "Limite",
+          15
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "NIGHT_SOFT_LIMIT",
+          "family": "Limite",
+          "points": 0,
+          "floor": "two_factor_required"
+        },
+        {
+          "code": "NIGHT_HARD_LIMIT",
+          "family": "Limite",
+          "points": 0,
+          "floor": "rejected"
+        },
+        {
+          "code": "LOW_HISTORY_EXPOSURE",
+          "family": "Limite",
+          "points": 15,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 15,
+      "c_pre": 45,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Fan-in de intenções, não recebimentos",
+      "id": "fanin-0",
+      "amount_cents": 80000,
+      "decision_at": "2026-10-17T09:00:00-03:00",
+      "status": "approved",
+      "score": 20,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          20
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "RECENT_PAYEE_ACCOUNT",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 10,
+      "c_pre": 50,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Fan-in de intenções, não recebimentos",
+      "id": "fanin-1",
+      "amount_cents": 80000,
+      "decision_at": "2026-10-17T10:00:00-03:00",
+      "status": "approved",
+      "score": 20,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          20
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "RECENT_PAYEE_ACCOUNT",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 10,
+      "c_pre": 50,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Fan-in de intenções, não recebimentos",
+      "id": "fanin-2",
+      "amount_cents": 80000,
+      "decision_at": "2026-10-17T11:00:00-03:00",
+      "status": "approved",
+      "score": 20,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          20
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "RECENT_PAYEE_ACCOUNT",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 10,
+      "c_pre": 50,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Fan-in de intenções, não recebimentos",
+      "id": "fanin-3",
+      "amount_cents": 80000,
+      "decision_at": "2026-10-17T12:00:00-03:00",
+      "status": "approved",
+      "score": 20,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          20
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "RECENT_PAYEE_ACCOUNT",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 10,
+      "c_pre": 50,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Fan-in de intenções, não recebimentos",
+      "id": "fanin-4",
+      "amount_cents": 80000,
+      "decision_at": "2026-10-17T13:00:00-03:00",
+      "status": "two_factor_required",
+      "score": 50,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          50
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "RECENT_PAYEE_ACCOUNT",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        },
+        {
+          "code": "MULE_FAN_IN",
+          "family": "Contraparte",
+          "points": 40,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 50,
+      "c_pre": 10,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Fan-in de intenções, não recebimentos",
+      "id": "fanin-5",
+      "amount_cents": 80000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "two_factor_required",
+      "score": 50,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          50
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "RECENT_PAYEE_ACCOUNT",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        },
+        {
+          "code": "MULE_FAN_IN",
+          "family": "Contraparte",
+          "points": 40,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 50,
+      "c_pre": 10,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rateio em conta antiga",
+      "id": "split-0",
+      "amount_cents": 4000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rateio em conta antiga",
+      "id": "split-1",
+      "amount_cents": 4000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rateio em conta antiga",
+      "id": "split-2",
+      "amount_cents": 4000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rateio em conta antiga",
+      "id": "split-3",
+      "amount_cents": 4000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rateio em conta antiga",
+      "id": "split-4",
+      "amount_cents": 4000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Estruturação: três intenções",
+      "id": "struct-0",
+      "amount_cents": 99000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Estruturação: três intenções",
+      "id": "struct-1",
+      "amount_cents": 99000,
+      "decision_at": "2026-10-17T15:00:00-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Estruturação: três intenções",
+      "id": "struct-2",
+      "amount_cents": 99000,
+      "decision_at": "2026-10-17T16:00:00-03:00",
+      "status": "two_factor_required",
+      "score": 40,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          30
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "STRUCTURING",
+          "family": "Montante",
+          "points": 30,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 30,
+      "c_pre": 30,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rajada mesmo valor/destino e IDs distintos",
+      "id": "burst-0",
+      "amount_cents": 5000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rajada mesmo valor/destino e IDs distintos",
+      "id": "burst-1",
+      "amount_cents": 5000,
+      "decision_at": "2026-10-17T14:00:01-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rajada mesmo valor/destino e IDs distintos",
+      "id": "burst-2",
+      "amount_cents": 5000,
+      "decision_at": "2026-10-17T14:00:02-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rajada mesmo valor/destino e IDs distintos",
+      "id": "burst-3",
+      "amount_cents": 5000,
+      "decision_at": "2026-10-17T14:00:03-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rajada mesmo valor/destino e IDs distintos",
+      "id": "burst-4",
+      "amount_cents": 5000,
+      "decision_at": "2026-10-17T14:00:04-03:00",
+      "status": "two_factor_required",
+      "score": 40,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          30
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "VELOCITY_BURST",
+          "family": "Velocity",
+          "points": 30,
+          "floor": null
+        },
+        {
+          "code": "RECEIPT_VELOCITY",
+          "family": "Velocity",
+          "points": 0,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 30,
+      "c_pre": 30,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rajada mesmo valor/destino e IDs distintos",
+      "id": "burst-5",
+      "amount_cents": 5000,
+      "decision_at": "2026-10-17T14:00:05-03:00",
+      "status": "two_factor_required",
+      "score": 40,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          30
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "VELOCITY_BURST",
+          "family": "Velocity",
+          "points": 30,
+          "floor": null
+        },
+        {
+          "code": "RECEIPT_VELOCITY",
+          "family": "Velocity",
+          "points": 0,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 30,
+      "c_pre": 30,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rajada mesmo valor/destino e IDs distintos",
+      "id": "burst-6",
+      "amount_cents": 5000,
+      "decision_at": "2026-10-17T14:00:06-03:00",
+      "status": "two_factor_required",
+      "score": 40,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          30
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "VELOCITY_BURST",
+          "family": "Velocity",
+          "points": 30,
+          "floor": null
+        },
+        {
+          "code": "RECEIPT_VELOCITY",
+          "family": "Velocity",
+          "points": 0,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 30,
+      "c_pre": 30,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rajada mesmo valor/destino e IDs distintos",
+      "id": "burst-7",
+      "amount_cents": 5000,
+      "decision_at": "2026-10-17T14:00:07-03:00",
+      "status": "two_factor_required",
+      "score": 40,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          30
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "VELOCITY_BURST",
+          "family": "Velocity",
+          "points": 30,
+          "floor": null
+        },
+        {
+          "code": "RECEIPT_VELOCITY",
+          "family": "Velocity",
+          "points": 0,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 30,
+      "c_pre": 30,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rajada mesmo valor/destino e IDs distintos",
+      "id": "burst-8",
+      "amount_cents": 5000,
+      "decision_at": "2026-10-17T14:00:08-03:00",
+      "status": "two_factor_required",
+      "score": 40,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          30
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "VELOCITY_BURST",
+          "family": "Velocity",
+          "points": 30,
+          "floor": null
+        },
+        {
+          "code": "RECEIPT_VELOCITY",
+          "family": "Velocity",
+          "points": 0,
+          "floor": null
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 30,
+      "c_pre": 30,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Rajada mesmo valor/destino e IDs distintos",
+      "id": "burst-9",
+      "amount_cents": 5000,
+      "decision_at": "2026-10-17T14:00:09-03:00",
+      "status": "rejected",
+      "score": 40,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          30
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "VELOCITY_BURST",
+          "family": "Velocity",
+          "points": 30,
+          "floor": "rejected"
+        },
+        {
+          "code": "RECEIPT_VELOCITY",
+          "family": "Velocity",
+          "points": 0,
+          "floor": "rejected"
+        },
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 30,
+      "c_pre": 30,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "queried"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-0",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-1",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:00:30-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-2",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:01:00-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-3",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:01:30-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-4",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:02:00-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-5",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:02:30-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-6",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:03:00-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-7",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:03:30-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-8",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:04:00-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-9",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:04:30-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-10",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:05:00-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-11",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:05:30-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-12",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:06:00-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-13",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:06:30-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-14",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:07:00-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-15",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:07:30-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-16",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:08:00-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-17",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:08:30-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-18",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:09:00-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Folha PJ estabelecida: 20 CPFs com DV válido",
+      "id": "salary-19",
+      "amount_cents": 250000,
+      "decision_at": "2026-10-17T14:09:30-03:00",
+      "status": "approved",
+      "score": 0,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          0
+        ]
+      ],
+      "reasons": [],
+      "local_score": 0,
+      "c_pre": 80,
+      "general_profile": true,
+      "payee_profile": true,
+      "recipient_established": true,
+      "device_state": "unknown",
+      "night_qualifies": false,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "skipped_after_initial",
+        "payee": "skipped_confidence"
+      }
+    },
+    {
+      "scenario": "Indisponibilidade dupla não duplica +10",
+      "id": "outage",
+      "amount_cents": 5000,
+      "decision_at": "2026-10-17T14:00:00-03:00",
+      "status": "approved",
+      "score": 10,
+      "families": [
+        [
+          "Limite",
+          0
+        ],
+        [
+          "Velocity",
+          0
+        ],
+        [
+          "Montante",
+          0
+        ],
+        [
+          "Perfil",
+          0
+        ],
+        [
+          "Acesso",
+          0
+        ],
+        [
+          "Contraparte",
+          10
+        ]
+      ],
+      "reasons": [
+        {
+          "code": "DICT_CHECK_UNAVAILABLE",
+          "family": "Contraparte",
+          "points": 10,
+          "floor": null
+        }
+      ],
+      "local_score": 0,
+      "c_pre": 60,
+      "general_profile": false,
+      "payee_profile": false,
+      "recipient_established": false,
+      "device_state": "unknown",
+      "night_qualifies": true,
+      "policy_version": "pix-experimental-v3",
+      "dict_actions": {
+        "payer": "queried",
+        "payee": "queried"
+      }
+    }
+  ]
+}
