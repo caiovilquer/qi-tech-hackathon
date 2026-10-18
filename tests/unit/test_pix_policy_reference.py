@@ -1,7 +1,7 @@
 """Independent policy invariants: expected facts are hand-specified, not golden output.
 
-PolicyTests ported from docs/contexto/test_politica_pix.py (36 tests).
-The 20 sequential OrchestrationTests remain reference-only; see docs/validacao-pr2.md.
+PolicyTests ported from docs/referencia/test_politica_pix.py (36 tests).
+The 20 sequential OrchestrationTests remain reference-only (docs/referencia/test_politica_pix.py).
 No test here claims database concurrency, HTTP integration or measured efficacy.
 """
 from copy import deepcopy

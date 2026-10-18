@@ -109,6 +109,16 @@ usados ficam congelados em `snapshot.bank_payments`, além de seus identificador
 nas features. Dados fora da janela comportamental não exigem carregar análises
 locais antigas apenas para descartá-las no cálculo; decisões puras são preservadas.
 
+## Logs
+
+Cada requisição recebe `X-Request-ID` (aceito do cliente quando bem formado) e todas as
+linhas de log dela carregam esse id entre colchetes. O formato é `evento chave=valor`,
+com texto do cliente escapado. Eventos Pix: `pix.analysis.completed` (status, key,
+score, motivos, ciclos e `elapsed_ms` de cada 201/200), `pix.analysis.error` (status e
+código de cada recusa), `pix.analysis.budget_exceeded`/`reconciliation_required` e
+`provider.unavailable` em WARNING, e falhas técnicas em ERROR com traceback. A tabela
+completa está no README, seção "Logs e observabilidade".
+
 ## Deadline e falhas
 
 O contexto e os recebimentos sintéticos do Enricher usam `DatabaseClock`: UTC
@@ -157,10 +167,7 @@ código, seja detectado no enriquecimento, na releitura antes de persistir ou so
 os locks finais; nenhum desses casos instrui retry técnico. Logs escapam
 controles/Unicode em path/query e nos handlers de erro. O pool Pix nasce em
 `pix_engine_for(url)`; os testes ligam os mesmos parâmetros ao banco descartável
-de cada caso, sem gravar Pix no banco compartilhado da sentinela.
-Correções e ressalvas da revisão: [CORRECOES-REVISAO-PR5.md](CORRECOES-REVISAO-PR5.md);
-da re-revisão: [CORRECOES-REREVISAO-PR5.md](CORRECOES-REREVISAO-PR5.md).
-
-Validação/TDD: [validacao-pr5.md](validacao-pr5.md). Revisão:
-[REVISAO-PR5.md](REVISAO-PR5.md). A aceitação/demonstração integrada e os limites da entrega estão em
-[aceitacao-pix.md](aceitacao-pix.md) e [validacao-pr6.md](validacao-pr6.md).
+de cada caso, sem gravar Pix no banco compartilhado; ali só entra a análise sentinela da
+guarda de ambiente (`sentinel-*`, política `test-sentinel`), imutável como qualquer análise.
+A cobertura de aceitação, a demonstração integrada e os limites da entrega estão em
+[aceitacao-pix.md](aceitacao-pix.md).

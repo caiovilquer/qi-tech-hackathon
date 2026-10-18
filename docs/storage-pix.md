@@ -203,9 +203,3 @@ inclusive indisponível permanece durável em source_initial_check.
 Cache usa somente os registros normalizados, não EnrichmentProgress com
 Deadline/callable. Persistência de progresso e uso de SourceCheck/resume devem
 ser conectados pelo coordenador da etapa 5, comprovando posse/fencing.
-
-## Correções da revisão independente
-
-Os achados da revisão do SHA `7fead97`, as decisões sobre os itens opcionais e as
-regressões correspondentes estão em
-[CORRECOES-REVISAO-PR4.md](CORRECOES-REVISAO-PR4.md).

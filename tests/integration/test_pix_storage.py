@@ -349,14 +349,14 @@ def test_terminal_auth_failure_releases_only_exact_challenge_exposure(storage):
     storage.bind_challenge('demo','bank-demo',p.id,dto.public['key'],'challenge',fingerprint(p))
     with storage.read() as r:
         before=r.context(replace(p,id='next'),datetime.now(timezone.utc),Policy())
-        assert len(build_features(before,Policy()).exposed)==1
+        assert len(build_features(before,Policy()).exposures)==1
     fail=event(p,dto,'failed',kind='auth',challenge='wrong',terminal=True)
     with pytest.raises(InvalidEvent):
         storage.ingest(fail)
     storage.ingest(replace(fail,challenge_id='challenge'))
     with storage.read() as r:
         after=r.context(replace(p,id='next'),datetime.now(timezone.utc),Policy())
-        assert build_features(after,Policy()).exposed==()
+        assert build_features(after,Policy()).exposures==()
         assert storage.get('demo',p.id) == dto
 
 

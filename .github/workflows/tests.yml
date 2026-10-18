@@ -13,7 +13,7 @@ jobs:
       - name: Build and test against PostgreSQL 16
         run: docker compose -p pix-ci -f compose.test.yml up --build --abort-on-container-exit --exit-code-from tests tests
       - name: Compare pure engine with unmodified V3 reference
-        run: docker compose -p pix-ci -f compose.test.yml run --rm --no-deps -v "$PWD/docs/contexto:/reference:ro" tests python tests/reference/verify_pix_reference.py --reference-dir /reference
+        run: docker compose -p pix-ci -f compose.test.yml run --rm --no-deps -v "$PWD/docs/referencia:/reference:ro" tests python tests/reference/verify_pix_reference.py --reference-dir /reference
       - name: Run documented delivery demo
         run: docker compose -p pix-ci -f compose.test.yml run --rm demo
       - name: Show service logs on failure

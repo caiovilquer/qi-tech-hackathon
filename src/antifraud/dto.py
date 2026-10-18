@@ -62,7 +62,7 @@ class PixTransactionDTO:
             enrichment[role] = {"action": action, "state": state}
         public = {"key": key, "status": decision.status, "metadata": {
             "policy_version": policy.version, "score": decision.score,
-            "confidence_pre": decision.c_pre, "reasons": [r.code for r in decision.reasons],
+            "confidence_pre": decision.c_pre, "reasons": [reason.code for reason in decision.reasons],
             "decision_at": context.decision_at, "data_quality": normalized.data_quality,
             "enrichment": enrichment}}
         audit = {
@@ -77,18 +77,18 @@ class PixTransactionDTO:
             "provider_traces": tuple(asdict(trace) for trace in context.provider_traces),
             "bank_payments": tuple(asdict(payment) for payment in context.bank_payments),
             "features": {
-                "general_profile": features.general, "payee_profile": features.payee_profile,
-                "recipient_established": features.established, "device_state": features.device,
-                "trusted_beneficiary": features.trusted, "security_valid": features.sec_valid,
-                "destination_age_microseconds": features.age // timedelta(microseconds=1),
-                "night_qualifies": features.qualifies, "night_start": features.ns,
-                "history_count": len(features.history), "payer_history_count": len(features.mine),
+                "general_profile": features.general_profile, "payee_profile": features.payee_profile,
+                "recipient_established": features.recipient_established, "device_state": features.device_state,
+                "trusted_beneficiary": features.trusted_beneficiary, "security_valid": features.security_valid,
+                "destination_age_microseconds": features.destination_age // timedelta(microseconds=1),
+                "night_qualifies": features.night_qualifies, "night_start": features.night_started_at,
+                "history_count": len(features.history), "payer_history_count": len(features.payer_history),
                 "bank_payment_count": len(features.bank_payments),
                 "bank_payment_refs": tuple((p.provider, p.operation_id) for p in features.bank_payments),
                 "mature_payments": len(features.mature), "mature_payee_payments": len(features.mature_payee),
                 "paid_payee_payments": len(features.paid_payee),
-                "velocity_count": features.count, "receipt_count": features.receipt_count,
-                "day_attempts": len(features.day) + 1, "day_amount_cents": features.attempts_sum,
+                "velocity_count": features.velocity_count, "receipt_count": features.receipt_count,
+                "day_attempts": len(features.day_attempts) + 1, "day_amount_cents": features.day_amount_cents,
                 "profile_median_cents": features.profile_median, "daily_median_cents": features.daily_median,
                 "structuring_counts": {str(limit): features.structuring_count(limit, policy.structuring_percent)
                                        for limit in policy.structuring_limits},

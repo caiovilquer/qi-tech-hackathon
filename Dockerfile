@@ -33,7 +33,7 @@ FROM base AS api
 RUN chown -R user /app
 USER user
 
-# --no-server-header: o uvicorn nao anuncia a propria versao, que e
-# informacao de menos pra quem procura uma versao com falha conhecida.
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "3000", "--no-server-header"]
+# --no-server-header hides the server version; --no-access-log avoids duplicating
+# the request logger lines, which carry the request id.
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "3000", "--no-server-header", "--no-access-log"]
 

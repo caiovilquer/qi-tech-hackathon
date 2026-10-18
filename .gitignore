@@ -74,8 +74,11 @@ coverage.xml
 *.rar
 
 # Original obrigatório, preservado como fonte para revisão.
-!docs/contexto/bootcamp-base-api.zip
 
 # --- Tipagem estática --------------------------------------
 .mypy_cache/
 .ruff_cache/
+
+# Presentation guide stays local only.
+docs/guia-apresentacao.md
+docs/guia-apresentacao.pdf

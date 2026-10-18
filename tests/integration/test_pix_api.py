@@ -21,7 +21,8 @@ from tests.unit.test_pix_contract import OFFICIAL_PAYLOAD
 from antifraud.adapter import to_pix
 from antifraud.configuration import PolicyCatalog
 from antifraud.policy import Policy
-from controllers.pix_api import PixController, Tenant
+from controllers.pix_api import PixController
+from utils.pix_tenants import Tenant
 from providers.contracts import ProviderIdentity
 from providers.fixtures import FixtureBankProvider, FixtureReputationProvider
 from utils.pix_storage_codec import fingerprint
@@ -84,7 +85,7 @@ def test_official_http_decisions_are_committed_and_queryable(api,storage,amount,
     assert r.json()['status']==status
     assert get(url,p['id']).json()==r.json()
     with storage.read() as repo:
-        row=repo.local('demo',p['id'])
+        row=repo.analysis_row('demo',p['id'])
         assert row['amount_cents']==amount
         assert row['snapshot']['source_participant']=='00000000'
         assert repo.session.execute(text('SELECT http_status FROM request_receipt')).scalar()==201
@@ -253,7 +254,7 @@ def test_same_origin_distinct_requests_are_all_counted_after_initial_wait(api,st
 
 def test_db_deadline_cancels_statement_and_prevents_late_commit(api,storage,monkeypatch):
     service=controller(storage);url=api(service)
-    original=service._finalize
+    original=service._finalize_analysis
     def slow(*args):
         # The actual slow SQL executes within the final transaction, not a mock repository.
         original_context=storage.analysis
@@ -266,7 +267,7 @@ def test_db_deadline_cancels_statement_and_prevents_late_commit(api,storage,monk
         storage.analysis=blocked
         try:return original(*args)
         finally:storage.analysis=original_context
-    monkeypatch.setattr(service,'_finalize',slow)
+    monkeypatch.setattr(service,'_finalize_analysis',slow)
     p=payload();start=monotonic();r=post(url,p)
     assert r.status_code==503 and monotonic()-start<3.5
     sleep(.15)
@@ -299,12 +300,12 @@ def test_bank_link_arriving_after_enrichment_does_not_count_execution_twice(api,
     payment=BankPayment(IDENTITY.name,'bank-op',replace(p,id='bank-op'),
                        ExecutionEvent('bank-exec',p.payer,'bank-op','executed',p.transaction_at,p.transaction_at))
     service=controller(storage,bank=FixtureBankProvider(IDENTITY,history=(payment,)))
-    persist=service._persist
+    persist=service._persist_enrichment
     def arrived(enriched):
         persist(enriched)
         storage.link_bank_operation('demo',IDENTITY.name,'bank-op',p.id,fingerprint(p))
         storage.ingest(event(p,dto,occurred=p.transaction_at,event_id='bank-exec'))
-    monkeypatch.setattr(service,'_persist',arrived)
+    monkeypatch.setattr(service,'_persist_enrichment',arrived)
     r=post(api(service),payload())
     assert r.status_code==201,r.text
     with storage.read() as repo:
@@ -321,7 +322,7 @@ def test_imported_history_is_frozen_in_private_audit_without_api_attempt(api,sto
     r=post(api(controller(storage,bank=FixtureBankProvider(IDENTITY,history=(payment,)))),body:=payload())
     assert r.status_code==201,r.text
     with storage.read() as repo:
-        audit=repo.local('demo',body['id'])['snapshot']
+        audit=repo.analysis_row('demo',body['id'])['snapshot']
         assert audit['bank_payments'][0]['operation_id']==p.id
         assert audit['bank_payments'][0]['pix']['amount_cents']==p.amount_cents
         assert repo.session.execute(text('SELECT count(*) FROM pix_transaction')).scalar()==1
@@ -366,15 +367,15 @@ def test_new_bank_link_is_ingested_outside_locks_on_next_cycle(api,storage,monke
     payment=BankPayment(IDENTITY.name,'late-op',replace(p,id='late-op'),
         ExecutionEvent('late-exec',p.payer,'late-op','executed',p.transaction_at,p.transaction_at))
     service=controller(storage,bank=FixtureBankProvider(IDENTITY,history=(payment,)))
-    persist=service._persist;calls=[]
+    persist=service._persist_enrichment;calls=[]
     def arrive(enriched):
         persist(enriched);calls.append(1)
         storage.link_bank_operation('demo',IDENTITY.name,'late-op',p.id,fingerprint(p))
-    monkeypatch.setattr(service,'_persist',arrive)
+    monkeypatch.setattr(service,'_persist_enrichment',arrive)
     body=payload();r=post(api(service),body)
     assert r.status_code==201 and len(calls)==2,r.text
     with storage.read() as repo:
-        assert repo.local('demo',body['id'])['snapshot']['features']['mature_payments']==1
+        assert repo.analysis_row('demo',body['id'])['snapshot']['features']['mature_payments']==1
         assert repo.session.execute(text('SELECT count(*) FROM bank_event')).scalar()==1
 
 
@@ -394,7 +395,7 @@ def test_locked_security_refresh_recomputes_preliminary_recipient_and_rejects(ap
             calls.append(key.document)
             return await super().reputation(key,*a,**kw)
     service=controller(storage,FixtureBankProvider(IDENTITY,records=(security,),history=tuple(payments)),Reputation(IDENTITY))
-    persist=service._persist;cycles=[]
+    persist=service._persist_enrichment;cycles=[]
     def revoke(enriched):
         persist(enriched);cycles.append(1)
         if len(cycles)==1:
@@ -402,12 +403,12 @@ def test_locked_security_refresh_recomputes_preliminary_recipient_and_rejects(ap
                 observed_at=now-timedelta(seconds=1),available_at=now-timedelta(seconds=1),
                 recoveries=((now-timedelta(minutes=5),now-timedelta(minutes=5)),)))
             with storage.write() as r:r.put_snapshots((revoked,))
-    monkeypatch.setattr(service,'_persist',revoke)
+    monkeypatch.setattr(service,'_persist_enrichment',revoke)
     r=post(api(service),body)
     assert r.status_code==201 and r.json()['status']=='rejected',r.text
     assert len(cycles)==2 and calls.count(pix.payee_document)==1
     with storage.read() as repo:
-        snap=repo.local('demo',body['id'])['snapshot']
+        snap=repo.analysis_row('demo',body['id'])['snapshot']
         assert snap['security']['source_version']==1
         assert snap['enrichment']['payee']['action']=='queried'
 
@@ -530,7 +531,7 @@ def test_terminal_2fa_event_arriving_before_final_locks_releases_only_its_exposu
         release.set();r=pending.result(4)
     assert r.status_code==201,r.text
     with storage.read() as repo:
-        audit=repo.local('demo',body['id'])['snapshot']
+        audit=repo.analysis_row('demo',body['id'])['snapshot']
         assert audit['features']['night_soft_exposure_cents']==0
         assert repo.get('demo',p.id).public==dto.public
 
@@ -593,7 +594,7 @@ def test_future_knowledge_bank_execution_is_not_ingested_as_known_now(api,storag
     assert r.status_code==201,r.text
     with storage.read() as repo:
         assert repo.session.execute(text('SELECT count(*) FROM bank_event')).scalar()==0
-        assert repo.local('demo',body['id'])['snapshot']['features']['mature_payments']==0
+        assert repo.analysis_row('demo',body['id'])['snapshot']['features']['mature_payments']==0
 
 
 def test_flush_sql_failure_is_rolled_back_before_http_success(api,storage,monkeypatch):

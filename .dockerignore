@@ -31,5 +31,5 @@ htmlcov
 .idea
 .DS_Store
 
-# Fontes de contexto/revisão não são dependências da imagem ou da API.
-docs/contexto
+# A referência Python V3 é montada só para leitura no container de testes.
+docs/referencia

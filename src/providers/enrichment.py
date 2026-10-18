@@ -11,6 +11,9 @@ from .budget import Deadline, ProviderRunner
 from .contracts import (BankContextProvider, ReputationProvider, BankRecord, ReputationRecord,
                         ProviderDataError, ProviderIdentity, ProviderUnavailable, ReputationKey, SecurityScope, text, validate_payment)
 from .selection import select_reputation, select_security, reconcile_payments
+from utils.logger import get_logger, log_fields
+
+logger = get_logger(__name__)
 
 
 def utc_now():
@@ -127,8 +130,8 @@ class Enricher:
         capture()
         receipts = list(resume.received_at) if resume is not None else []
         initial = resume.initial_result if resume is not None else None
-        raw_log = list(resume.lookups) if resume is not None else []
-        memo = {record.key: record for record in raw_log}
+        response_log = list(resume.lookups) if resume is not None else []
+        responses_by_key = {record.key: record for record in response_log}
         if security_cached is not None:
             if not isinstance(security_cached, BankRecord):
                 raise ProviderDataError('Invalid security cache record')
@@ -141,6 +144,7 @@ class Enricher:
             observed = await self.runner.call(
                 lambda seconds: self.bank.security(scope, now, timeout_seconds=seconds), deadline)
         except ProviderUnavailable:
+            logger.warning('provider.unavailable ' + log_fields(role='security', provider=self.bank.identity.name))
             observed = BankRecord(scope, self.bank.identity, 'unavailable', None, self.bank.identity.name)
         receipts.append(('security', capture()))
         if not isinstance(observed, BankRecord):
@@ -156,6 +160,7 @@ class Enricher:
                 validate_payment(row, self.bank.identity)
             history_state = 'available' if payments else 'not_covered'
         except ProviderUnavailable:
+            logger.warning('provider.unavailable ' + log_fields(role='history', provider=self.bank.identity.name))
             payments, history_state = (), 'unavailable'
         receipts.append(('history', capture()))
         security = select_security(scope, self.bank.identity, (observed,), now, cached=security_cached)
@@ -174,21 +179,21 @@ class Enricher:
         cached = tuple(cached) + (resume.selected if resume is not None else ())
         if any(not isinstance(record, ReputationRecord) for record in cached):
             raise ProviderDataError('Invalid cache record')
-        known, lookups, actions, queried = {}, {}, {}, []
+        selected_by_key, lookups, actions, queried = {}, {}, {}, []
         for role, key in keys.items():
-            if key not in known:
+            if key not in selected_by_key:
                 matching = tuple(r for r in cached if r.key == key)
-                known[key] = select_reputation(key, matching, now, ttl_seconds=self.policy.dict_ttl_seconds) if matching else None
-            previous = known[key]
+                selected_by_key[key] = select_reputation(key, matching, now, ttl_seconds=self.policy.dict_ttl_seconds) if matching else None
+            previous = selected_by_key[key]
             required = source_check == SourceCheck.OWNED if role == 'payer' else confidence < self.policy.dict_threshold
             if previous is not None and previous.evidence.valid(now):
                 actions[role] = 'cache'
-            elif (key in memo and (role == 'payer' and initial is not None
-                    or required and memo[key].evidence.state in ('not_covered', 'unavailable')
-                    and memo[key].evidence.available_at <= now)):
-                known[key] = select_reputation(key, (memo[key],), now, cached=previous,
+            elif (key in responses_by_key and (role == 'payer' and initial is not None
+                    or required and responses_by_key[key].evidence.state in ('not_covered', 'unavailable')
+                    and responses_by_key[key].evidence.available_at <= now)):
+                selected_by_key[key] = select_reputation(key, (responses_by_key[key],), now, cached=previous,
                                                ttl_seconds=self.policy.dict_ttl_seconds)
-                lookups[key] = memo[key]
+                lookups[key] = responses_by_key[key]
                 actions[role] = 'queried'
                 queried.append(role)
             elif role == 'payer' and initial is not None:
@@ -196,26 +201,27 @@ class Enricher:
             elif required:
                 if key not in lookups:
                     try:
-                        raw = await self.runner.call(
+                        response = await self.runner.call(
                             lambda seconds, key=key: self.reputation.reputation(key, now, timeout_seconds=seconds), deadline)
                     except ProviderUnavailable:
+                        logger.warning('provider.unavailable ' + log_fields(role=role, provider=key.provider.name))
                         capture()
-                        raw = select_reputation(key, (), now, ttl_seconds=self.policy.dict_ttl_seconds)
-                        raw = replace(raw, evidence=replace(raw.evidence, state='unavailable'))
+                        response = select_reputation(key, (), now, ttl_seconds=self.policy.dict_ttl_seconds)
+                        response = replace(response, evidence=replace(response.evidence, state='unavailable'))
                     receipts.append((role, capture()))
-                    if not isinstance(raw, ReputationRecord):
+                    if not isinstance(response, ReputationRecord):
                         raise ProviderDataError('Invalid reputation provider response')
-                    known[key] = select_reputation(key, (raw,), now, cached=previous,
+                    selected_by_key[key] = select_reputation(key, (response,), now, cached=previous,
                                                    ttl_seconds=self.policy.dict_ttl_seconds)
-                    lookups[key] = raw
-                    memo[key] = raw
-                    raw_log.append(raw)
+                    lookups[key] = response
+                    responses_by_key[key] = response
+                    response_log.append(response)
                 actions[role] = 'queried'
                 queried.append(role)
             else:
                 actions[role] = 'skipped_after_initial' if role == 'payer' else 'skipped_confidence'
             if role == 'payer' and source_check == SourceCheck.OWNED and initial is None:
-                initial = known[key]
+                initial = selected_by_key[key]
                 if on_initial is not None:
                     await on_initial(initial)
 
@@ -223,15 +229,15 @@ class Enricher:
         # renewing source validity or replacing an expired watermark with old clean data.
         capture()
         security = select_security(scope, self.bank.identity, (observed,), now, cached=security_cached)
-        for key, previous in known.items():
+        for key, previous in selected_by_key.items():
             if previous is not None:
                 rows = (lookups[key],) if key in lookups else ()
-                known[key] = select_reputation(key, rows, now, cached=previous,
+                selected_by_key[key] = select_reputation(key, rows, now, cached=previous,
                                                ttl_seconds=self.policy.dict_ttl_seconds)
         context = replace(context, decision_at=now, security=security.snapshot)
         progress = EnrichmentProgress(base.pix, self.policy, self.bank.identity, self.reputation.identity,
             self.scope, deadline, source_check, now, security, observed, initial,
-            tuple(r for r in known.values() if r is not None), tuple(raw_log), tuple(receipts), payments)
+            tuple(r for r in selected_by_key.values() if r is not None), tuple(response_log), tuple(receipts), payments)
         if security.state == 'stale':
             raise EnrichmentNeedsRefresh('Known bank security is expired; refresh required', progress)
         if (actions['payee'] == 'skipped_confidence'
@@ -245,22 +251,22 @@ class Enricher:
                                 'confirmed_payments', 'payer_account', self.bank.identity.name,
                                 history_state, history_state)]
         for role, key in keys.items():
-            record = known[key]
-            raw = lookups.get(key) or memo.get(key)
+            record = selected_by_key[key]
+            response = lookups.get(key) or responses_by_key.get(key)
             if actions[role] == 'cache' and not record.evidence.valid(now):
                 raise EnrichmentNeedsRefresh('Cached evidence expired during enrichment', progress)
             traces.append(ProviderTrace(role, key.provider.name, key.provider.version, key.operation, key.scope,
                                        record.evidence.provenance if record else key.provider.name,
                                        record.evidence.state if record else None,
-                                       raw.evidence.state if raw else None))
+                                       response.evidence.state if response else None))
             if record is not None and (role in queried or record.evidence.valid(now)):
                 evidence.append((role, record.evidence))
                 if role not in queried and record.evidence.valid(now):
                     actions[role] = 'cache'
         context = replace(context, dict_evidence=tuple(evidence), dict_queried=tuple(queried),
                           dict_actions=tuple(actions.items()), provider_traces=tuple(traces))
-        updates = tuple(record for record in known.values() if record is not None
+        updates = tuple(record for record in selected_by_key.values() if record is not None
                         and record.evidence.state in ('available', 'stale'))
         deadline.remaining()
-        return Enrichment(context, security, history_state, initial, tuple(raw_log), updates,
+        return Enrichment(context, security, history_state, initial, tuple(response_log), updates,
                           observed, tuple(receipts), progress)

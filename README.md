@@ -2,44 +2,44 @@
 
 **Integrantes:** Caio Vilquer Carvalho; Caio Cidade Rodrigues; Matheus Victor Barbosa dos Santos.
 
-API sobre a Base API do Bootcamp QI Tech, com FastAPI, PostgreSQL 16 e política
-**experimental** `pix-experimental-v3`. Entrega `POST /pix/transaction` e
-`GET /pix/transaction/{id}`, histórico próprio, análise imutável, idempotência
-concorrente, providers simulados e eventos bancários internos. A etapa final está
-em revisão; [plano e histórico das PRs](PLANO-IMPLEMENTACAO.md).
+API construída sobre a Base API do Bootcamp QI Tech (FastAPI, PostgreSQL 16) que recebe
+um Pix, aplica a política **experimental** `pix-experimental-v3` e devolve `approved`,
+`two_factor_required` ou `rejected`. Entrega `POST /pix/transaction` e
+`GET /pix/transaction/{id}`, histórico próprio em banco, análise imutável, idempotência
+concorrente, providers simulados e eventos bancários internos.
 
 ## Como o motor de decisão funciona
 
-O resource recebe os bytes HTTP; o parser preserva dinheiro em **centavos inteiros**,
-valida o contrato e calcula o hash de todos os campos normalizados. A credencial
-`INTERNAL-TOKEN` determina o tenant no servidor. O controller reserva tenant/ID/hash
-antes de consultar providers. Repetição igual devolve a análise original; outro
-hash retorna conflito, inclusive durante uma chamada concorrente.
+1. **Borda HTTP.** O resource lê os bytes do corpo (até 64 KiB), o parser preserva o
+   valor em **centavos inteiros**, valida o contrato oficial e calcula o hash SHA-256 de
+   todos os campos normalizados. A credencial `INTERNAL-TOKEN` identifica a instituição
+   (tenant) no servidor; nada de tenant no corpo.
+2. **Reserva.** O controller reserva tenant + ID + hash antes de consultar qualquer
+   provider. Repetição idêntica devolve a análise original (200); o mesmo ID com outro
+   conteúdo recebe 409, inclusive durante uma chamada concorrente.
+3. **Enriquecimento.** Fora de locks, reúne histórico próprio, pagamentos bancários
+   confirmados, segurança de conta/aparelho e reputação. A primeira solicitação válida
+   de cada conta exige a checagem do remetente, com resultado durável. O destinatário é
+   consultado quando `C_pre < 80`; evidência adversa já conhecida vale mesmo acima do
+   corte. Ausência, indisponibilidade e vencimento de dados são **incerteza**, nunca
+   reputação limpa. Observar um aparelho não o cadastra.
+4. **Decisão.** O motor puro recebe `Context` e `Policy` imutáveis, sem banco, rede ou
+   relógio. O coordenador usa o horário do PostgreSQL, revalida o contexto sob locks
+   ordenados de origem/destino e grava Pix, análise, reserva concluída e recibo em um
+   único commit. O JSON público e o snapshot privado de auditoria (política, dados,
+   motivos e features) são preservados; GET e replay nunca recalculam.
 
-O enriquecimento reúne histórico próprio e pagamentos bancários confirmados,
-segurança de conta/dispositivo e reputação. A primeira solicitação válida distinta
-observada por conta exige checagem do remetente, com resultado durável. O destinatário
-é consultado quando `C_pre < 80`; evidência adversa vigente já conhecida também é
-considerada acima desse corte. Ausência, indisponibilidade e vencimento são
-incerteza, nunca reputação limpa. Observação de aparelho não autoriza seu cadastro.
-
-O motor puro recebe `Context` e `Policy` imutáveis, sem banco, rede ou relógio.
-O coordenador usa horário do PostgreSQL, revalida o contexto sob locks ordenados de
-origem/destino e grava Pix, análise, claim concluída e receipt em um commit.
-O JSON público original e o snapshot privado com política/fingerprint, dados e
-motivos são preservados. GET/replay não recalculam a decisão.
-
-Mantivemos as camadas Resource → Controller → Repository/Model → DTO, contexto,
-autenticação, logger e session manager da base. O `Simulator` Python fornecido é
-referência de teste; a API não o utiliza como repository.
+As camadas Resource → Controller → Repository/Model → DTO, o contexto por requisição,
+a autenticação, o logger e o session manager da base foram mantidos. O Pix usa um pool
+próprio e transações explícitas no `PixStorage`; todo SQL fica no `PixRepository`.
+O `Simulator` Python fornecido é referência de teste, não repository da aplicação.
 
 ## Regras
 
-Valores monetários abaixo estão em **centavos**. Pontos, cortes e janelas são
-hipóteses reproduzíveis para a demonstração, sem calibração empírica. A escolha de
-valores redondos facilita testar fronteiras; não representa limite regulatório.
-O código ativo está em [rules.py](src/antifraud/rules.py),
-[features.py](src/antifraud/features.py) e [policies.json](src/antifraud/policies.json).
+Valores em **centavos**. Pontos, cortes e janelas são hipóteses reproduzíveis para a
+demonstração, sem calibração empírica; valores redondos facilitam testar fronteiras.
+Código em [rules.py](src/antifraud/rules.py), [features.py](src/antifraud/features.py)
+e [policies.json](src/antifraud/policies.json).
 
 | Regra / motivo | Lógica | Parâmetros iniciais | Por quê |
 |---|---|---|---|
@@ -69,112 +69,127 @@ O código ativo está em [rules.py](src/antifraud/rules.py),
 | `PAYEE_DICT_RESTRICTED` | Restrição explícita vigente do destinatário | Rejeição | Impedir que bônus de contexto ou tetos ocultem restrição |
 | `DICT_CHECK_UNAVAILABLE` | Consulta necessária sem evidência vigente: ausente, indisponível ou vencida | +10 uma vez | Desconhecimento não é limpeza; ainda permite pequeno Pix com risco agregado baixo |
 
-O perfil usa **90 dias** para limitar memória comportamental. Só execuções
-confirmadas e conhecidas entram; intenção e execução precisam ter pelo menos
-**24h** em relação à transação atual para maturidade. O perfil geral exige
-**5 pagamentos em 3 dias distintos**; o específico exige **2 execuções maduras
-na mesma conta destino**, independentemente do geral. São mínimos experimentais
-para evitar referência apoiada em uma única operação. Um pagamento maduro já
-estabelece o destinatário para o coeficiente preliminar, sem cadastrar beneficiário.
-
-O cache DICT usa TTL de **300s**, comprometimento entre reutilização e atualização
-na demonstração; também respeita validade do provider e watermark de versão.
-Ocorrência, conhecimento, validade e revisão de origem são dimensões separadas.
-Versão vencida mais nova não permite retornar a uma evidência antiga limpa.
+O perfil usa **90 dias** de memória comportamental. Só execuções confirmadas e
+conhecidas entram; intenção e execução precisam ter pelo menos **24h** em relação à
+transação atual para contar como maduras. O perfil geral exige **5 pagamentos em
+3 dias distintos**; o específico exige **2 execuções maduras na mesma conta destino**.
+Um pagamento maduro já estabelece o destinatário para o coeficiente preliminar, sem
+cadastrar beneficiário. O cache DICT usa TTL de **300s** e respeita validade e versão
+do provider; ocorrência, conhecimento, validade e revisão da fonte são dimensões separadas.
 
 ## Como as regras viram decisão
 
-1. Aplicar regras locais e tetos por família: **Limite 30, Velocity 30,
-   Montante 30, Perfil 30, Acesso 40, Contraparte 50**. Esses tetos evitam somar
-   irrestritamente sinais correlacionados; Acesso/Contraparte têm maior margem
-   para combinar sinais distintos. Não limitam pisos de decisão.
-2. Calcular `C_pre = max(0, 100 − min(100, score_local + incerteza))`.
-   Incerteza soma **20** por ausência de perfil geral, aparelho desconhecido e
-   destinatário não estabelecido, limitada a **40**. A hipótese penaliza falta
-   de contexto sem tornar a primeira transferência automaticamente proibida.
-   **80** é o corte experimental para consultar destinatário; `C_pre` é ordinal,
-   não probabilidade de legitimidade.
-3. Incorporar reputação e reaplicar os mesmos tetos. Score **≥70** rejeita;
-   **≥30** exige 2FA; abaixo disso aprova. O intervalo intermediário reserva
-   confirmação para risco moderado nesta política, sem validação de eficácia.
-4. Aplicar o piso mais severo de todos os motivos: restrições, revogação,
-   frequência extrema e limite bancário podem rejeitar mesmo com zero pontos.
+1. **Regras locais e tetos por família:** Limite 30, Velocity 30, Montante 30,
+   Perfil 30, Acesso 40, Contraparte 50. Os tetos evitam somar sinais correlacionados
+   sem limite; não limitam pisos de decisão.
+2. **Coeficiente preliminar:** `C_pre = max(0, 100 − min(100, score_local + incerteza))`.
+   A incerteza soma **20** por ausência de perfil geral, aparelho desconhecido e
+   destinatário não estabelecido, limitada a **40**. `C_pre < 80` dispara a consulta
+   ao destinatário; `C_pre` é ordinal, não probabilidade.
+3. **Reputação e score final:** reaplicam-se os tetos. Score **≥70** rejeita; **≥30**
+   exige 2FA; abaixo disso aprova.
+4. **Pisos:** o motivo mais severo prevalece. Restrições, revogação, frequência extrema
+   e limite bancário rejeitam mesmo com zero pontos; aparelho não cadastrado acima do
+   corte exige 2FA mesmo com score baixo.
 
-Análise antifraude, resultado de 2FA e execução financeira são separados.
-Sucesso de 2FA não registra aparelho, não prova pagamento e não muda `status`
-original. Eventos confiáveis de execução alimentam perfil e exposição futura;
-a ingestão é interna, com vínculo exato e idempotência, sem webhook público Pix.
+Análise antifraude, resultado de 2FA e execução financeira são fatos separados.
+Sucesso de 2FA não registra aparelho, não prova pagamento e não muda o `status`
+original. Eventos confiáveis de execução alimentam perfil e exposição futuras; a
+ingestão é interna, com vínculo exato e idempotência, sem webhook público.
 
 ## Como rodar e testar
 
-Requer **Docker com Compose v2** e daemon ativo. Execute na raiz deste Git.
-Não precisa instalar Python no host. Valores padrão são exclusivamente locais.
+Requer **Docker com Compose v2** e daemon ativo. Execute na raiz deste Git; não é
+preciso Python no host.
 
 ```bash
 docker compose up -d --build --wait
-curl -i http://127.0.0.1:3000/health_check
+curl -i http://127.0.0.1:3000/health_check          # 204
 ```
 
-Health esperado: **204**, liveness. A API publica `127.0.0.1:3000`, PostgreSQL
-`127.0.0.1:5432`. Se ocupadas, use
-`API_PORT=3300 DB_PORT=55432 docker compose up -d --build --wait`.
+A API publica `127.0.0.1:3000` e o PostgreSQL `127.0.0.1:5432`
+(`API_PORT=3300 DB_PORT=55432 docker compose up -d --build --wait` para trocar).
 `.env` é opcional; [.env.example](.env.example) documenta variáveis fictícias.
-Não usar o token/senha padrão em ambiente real.
+Não use o token/senha padrão fora do ambiente local.
 
-Exemplo oficial com identidades fictícias; `amount=5000` significa R$ 50,00:
+### Exemplo oficial
+
+`amount=5000` significa R$ 50,00. Identidades fictícias.
 
 ```bash
 curl -i http://127.0.0.1:3000/pix/transaction \
   -H 'INTERNAL-TOKEN: default_token' -H 'Content-Type: application/json' \
   --data-binary '{"id":"pix-demo-001","amount":5000,"transaction_date":"2026-10-17T12:00:00Z","source_account":{"branch":"0001","account_number":"88213","opening_date":"2025-03-02T13:00:00Z","owner":{"document_number":"12345678909"}},"destination_account":{"participant":"60701190","branch":"3675","account_number":"10442","opening_date":"2026-10-10T12:00:00Z","owner":{"document_number":"98765432100"}},"source":{"device_id":"dvc-demo","channel":"app","ip":"198.51.100.23"}}'
-curl -i http://127.0.0.1:3000/pix/transaction/pix-demo-001 \
-  -H 'INTERNAL-TOKEN: default_token'
+curl -i http://127.0.0.1:3000/pix/transaction/pix-demo-001 -H 'INTERNAL-TOKEN: default_token'
 ```
 
-Saída tem exatamente `key`, `status`, `metadata`. Só existem três status:
-`approved`, `two_factor_required`, `rejected`. Metadata contém versão, motivos,
-score, `confidence_pre`, `decision_at`, qualidade e estado/ação de enriquecimento.
-Nova análise retorna **201 após commit**; replay **200** com o mesmo DTO, sem
-providers; alteração com mesmo ID **409 QIT002002**. GET consulta ID externo no
-tenant e retorna 404 se não concluído. Sem token válido: 403, sem consulta SQL.
-Limite incremental de corpo: **64 KiB**. Erros seguem envelope da Base API.
+A resposta tem exatamente `key`, `status` e `metadata`. `metadata` traz versão da
+política, `score`, `confidence_pre`, `reasons` (códigos da tabela acima), `decision_at`,
+qualidade dos dados e o estado de cada consulta de enriquecimento. Toda resposta carrega
+o cabeçalho `X-Request-ID`, que também aparece em cada linha de log daquela requisição.
 
-Falha técnica: **503 QIT002008**, repetir o mesmo ID/corpo, inclusive se o commit
-ficou sem confirmação. Conflito de titularidade ou vínculo/evento bancário:
-**409 QIT002010**, requer reconciliação institucional; hash permanece reservado.
-[Contrato, erros e configuração completa](docs/api-pix.md).
+| Situação | HTTP | Código |
+|---|---|---|
+| Nova análise (`approved`, `two_factor_required` ou `rejected`), após commit | 201 | — |
+| Repetição do mesmo ID com o mesmo conteúdo (replay, sem providers) | 200 | — |
+| Mesmo ID com conteúdo diferente, inclusive em voo | 409 | `QIT002002` |
+| Titularidade ou vínculo bancário contraditório; reconciliar antes de repetir | 409 | `QIT002010` |
+| JSON, estrutura, tipo ou formato inválidos (campo informado em `description`) | 400 | `QIT000001` |
+| CPF/CNPJ com dígito inválido · data/fuso inválidos · conta aberta após a transação | 422 | `QIT002003` · `QIT002004` · `QIT002005` |
+| Corpo acima de 64 KiB | 413 | `QIT002009` |
+| GET de ID sem análise concluída no tenant | 404 | `QIT002001` |
+| Sem `INTERNAL-TOKEN` válido (sem consulta ao banco) | 403 | `QIT000002` |
+| Falha técnica ou dado que não estabiliza em 3s: repetir o mesmo ID e corpo | 503 | `QIT002008` |
+
+Erros seguem o envelope da Base API (`title`, `description`, `translation`, `code`).
+[Contrato completo, configuração e protocolo](docs/api-pix.md).
+
+### Logs e observabilidade
+
+Uma linha por evento, em inglês, no formato `evento chave=valor`, sempre com o
+`X-Request-ID` entre colchetes. Texto vindo do cliente é escapado (sem injeção de linha).
+Nunca se registra o corpo da requisição.
+
+| Evento | Nível | O que informa |
+|---|---|---|
+| `request.started` / `request.finished` | INFO | método, caminho, status e `elapsed_ms` de cada requisição (health check fora) |
+| `auth.denied` | WARNING | credencial ausente ou inválida |
+| `pix.analysis.completed` | INFO | `pix_id`, `outcome` (analysis/replay), `status`, `key`, `score`, `confidence_pre`, `reasons`, ciclos de revalidação e `elapsed_ms` |
+| `pix.analysis.error` | INFO | `http_status`, `code` e campo inválido de toda requisição Pix recusada |
+| `pix.analysis.budget_exceeded`, `pix.analysis.reconciliation_required`, `provider.unavailable` | WARNING | motivo operacional por trás de um 503/409 e qual provider ficou indisponível |
+| `pix.analysis.failed`, `pix.analysis.database_error`, `pix.receipt.*`, `error.unexpected` | ERROR | falhas técnicas, sempre com traceback |
+| `pix.claim.busy`, `pix.enrichment.refresh`, `pix.context.refresh` | DEBUG | esperas por reserva e ciclos de revalidação |
+| `error.response` | INFO | status e código de qualquer erro devolvido no envelope da base |
+
+```bash
+docker compose logs api | grep pix.analysis.completed
+docker compose logs api | grep '<X-Request-ID da resposta>'
+```
+
+O acesso padrão do Uvicorn fica desligado para não duplicar as linhas de requisição.
 
 ### Testes com PostgreSQL real
 
-A suíte original derruba `public`; use exclusivamente a stack descartável abaixo,
-sem portas publicadas. Nunca aponte testes para banco de uso.
+A suíte usa uma stack descartável, sem portas publicadas. Nunca aponte testes para o
+banco de uso.
 
 ```bash
 docker compose -p pix-tests -f compose.test.yml up --build --abort-on-container-exit --exit-code-from tests tests
 docker compose -p pix-tests -f compose.test.yml run --rm --no-deps \
-  -v "$PWD/docs/contexto:/reference:ro" tests \
+  -v "$PWD/docs/referencia:/reference:ro" tests \
   python tests/reference/verify_pix_reference.py --reference-dir /reference
-docker compose -p pix-tests -f compose.test.yml run --rm --no-deps \
-  -v "$PWD/docs/contexto:/reference:ro" tests \
-  python -m unittest discover -s /reference -p 'test_*.py' -q
 docker compose -p pix-tests -f compose.test.yml down -v --remove-orphans
 ```
 
-Validação local em **18/10/2026**, após as correções da revisão independente:
-**448 testes passaram em 86,82s** (Linux x86_64, Docker 29.8.2), PostgreSQL **16**
-e Python **3.11** nas imagens, sem skips/xfails. São os 445 casos submetidos mais
-3 da revisão. Antes das correções, o autor registrou **445 em 40,38s** (macOS) e
-um clone limpo via origin com **445 em 40,19s**, demo isolada e exemplo HTTP do
-README, inclusive persistência após restart. Referência separada: **92 testes**,
-**59 observações** e **2.000 contextos** com Decision V3 completa equivalente.
-Um warning de depreciação pertence ao `declarative_base` original.
-Detalhes e reprodução em [validacao-pr6.md](docs/validacao-pr6.md) e
-[CORRECOES-REVISAO-PR6.md](docs/CORRECOES-REVISAO-PR6.md).
-
-O primeiro comando preserva o exit code do pytest. Não executar suítes simultâneas
-sobre o mesmo projeto Compose. A guarda exige `APP_ENV=testing`, DB `pix_test_` e
-confirma por sentinela que a API usa o mesmo banco antes de coletar os testes.
-O usuário sintético de testes precisa poder criar/remover bancos isolados.
+São **415 testes** (HTTP real, concorrência, processos, falhas SQL, tempo, providers,
+migrations e aceitação) mais a comparação com a referência Python V3 (59 observações e
+2.000 contextos com `Decision` equivalente). A guarda exige `APP_ENV=testing`, banco
+`pix_test_` e confirma por sentinela que a API usa o mesmo banco antes de coletar: uma
+análise mínima gravada direto no banco é lida por `GET /pix/transaction/{id}`. Registros
+Pix são imutáveis, então a sentinela fica no banco descartável, identificada pelo prefixo
+`sentinel-` e pela política `test-sentinel`.
+A cobertura por grupo do guia e os limites da evidência estão em
+[docs/aceitacao-pix.md](docs/aceitacao-pix.md).
 
 ### Demonstração dos sete cenários
 
@@ -183,30 +198,13 @@ docker compose -p pix-demo -f compose.test.yml run --build --rm demo
 docker compose -p pix-demo -f compose.test.yml down -v --remove-orphans
 ```
 
-O comando inicia apenas o PostgreSQL de demonstração e um runner; o runner cria
-um banco aleatório, aplica migrations, sobe Uvicorn em processo filho e chama
-POST/GET reais. Ele gera fixtures normalizadas pelo contrato existente e usa os
-adapters da aplicação, sem substituir controllers. Ao terminar, encerra seus
-processos, remove somente o banco criado e os temporários, inclusive em falha
-de cenário com a API viva e em SIGTERM (`docker stop`). Não modifica o banco
-informado em `DATABASE_URL`. SIGKILL do container exige o `down` da stack
-descartável. Se a API filha não subir, o erro traz a saída do Uvicorn.
-
-A saída JSON valida: primeiro Pix; troca registrada de aparelho com controle
-não registrado pelo banco; dez IDs em rajada; exposição noturna atravessando
-meia-noite; destinatário adverso/restrito; replay após reinício; e 2FA seguido de
-execução bancária. São **21 análises**, **6 checagens iniciais**, **1 evento de
-autenticação e 1 de execução**. O evento é inserido pelo serviço interno confiável
-do banco simulado, sem implementar autenticação 2FA ou movimentar dinheiro.
-O Pix seguinte ao executado é datado **25h** depois: pela data da transação o
-pagamento já caberia na janela de maturidade de 24h e só continua imaturo porque
-a execução se tornou conhecida agora. Status/contagens são determinísticos;
-UUIDs e horários vêm do processo/banco.
-
-[Evidências, resultados e TDD](docs/validacao-pr6.md),
-[matriz de aceitação do guia §11.2](docs/aceitacao-pix.md),
-[prompt de revisão independente](docs/REVISAO-PR6.md) e
-[correções da revisão](docs/CORRECOES-REVISAO-PR6.md).
+O runner cria um banco aleatório, aplica as migrations, sobe o Uvicorn em processo filho
+e chama POST/GET reais: primeiro Pix; troca registrada de aparelho com controle não
+registrado; dez IDs em rajada; exposição noturna atravessando meia-noite; destinatário
+adverso/restrito; replay após reinício do processo; e 2FA seguido de execução bancária
+(o Pix seguinte, 25h depois, continua imaturo só porque a execução foi conhecida agora).
+São **21 análises**, **6 checagens iniciais**, 1 evento de autenticação e 1 de execução.
+Ao terminar, ou em falha e SIGTERM, encerra seus processos e remove só o banco criado.
 
 ### Ambiente e persistência
 
@@ -216,23 +214,18 @@ docker compose restart api
 docker compose down
 ```
 
-O volume `postgres_data` sobrevive ao restart e `down`. **Não executar `down -v`
-no ambiente de uso.** Depois de alterar código/migrations, reconstruir com
-`up -d --build --wait`; restart não lê alterações do host. O Compose não monta
-`src/` por bind mount. Migrations 0001/0002 são imutáveis, com checksum, transação
-DDL e advisory lock; a adoção de base antiga valida schema antes de preservar
-seus dados. [Procedimentos de migration e adoção](docs/migrations.md).
+O volume `postgres_data` sobrevive a restart e `down`; **não executar `down -v` no
+ambiente de uso**. Após alterar código ou migrations, `up -d --build --wait`.
+Migrations 0001/0002 são imutáveis, com checksum, transação DDL e advisory lock
+([docs/migrations.md](docs/migrations.md)).
 
-Para várias instituições, configurar `PIX_TENANTS` e políticas correspondentes no
-servidor. Padrão: tenant sintético `demo`, ISPB `00000000` e `INTERNAL_TOKEN`.
-Sem `PIX_FIXTURE_FILE`, os providers retornam `not_covered`. Arquivo de fixture
-é configuração local do servidor; nunca é recebido pelo HTTP. Consultas operam
-fora dos locks; leases de **10s** e fencing separados protegem ID e checagem
-inicial. Budget de **3s**, tentativa de provider até **250ms**, um retry técnico,
-lock até **1s** e até **3 ciclos** equilibram espera e revalidação na demonstração;
-não representam SLA medido em produção. Pools Pix/Base são separados.
+Para várias instituições, configurar `PIX_TENANTS` e políticas correspondentes.
+Padrão: tenant `demo`, ISPB `00000000` e `INTERNAL_TOKEN`. Sem `PIX_FIXTURE_FILE`, os
+providers retornam `not_covered`. Budget de **3s** por requisição, provider até **250ms**
+com um retry técnico, leases de **10s**, lock até **1s** e até **3 ciclos** de revalidação;
+não representam SLA medido.
 
-Desenvolvimento opcional exige Python **3.11**, como Docker/CI:
+Desenvolvimento opcional com Python **3.11**:
 
 ```bash
 python3.11 -m venv .venv
@@ -240,24 +233,16 @@ python3.11 -m venv .venv
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests/unit -p 'test_pix*.py' -q
 ```
 
-O lock fixa dependências Python diretas/transitivas; imagens usam tags de série,
-portanto o build não é hermético em binários. Não se adicionaram serviços, filas,
-Redis ou dependências nesta etapa. O CI executa suíte PostgreSQL, comparação com
-V3 e demo; seus resultados são evidência de execução, não ausência de bugs.
-
 ## Escopo e fontes
 
-O PDF oficial exige contrato, três status, histórico, Base Service, testes e este
-README. Normalização, DICT condicional, eventos, locks e protocolos são decisões
-do [guia V3](docs/contexto/GUIA-IMPLEMENTACAO-ANTIFRAUDE-PIX.md). Pesos, cortes,
-janelas e TTL são **experimentais**, sem promessa de calibração, eficácia,
-conformidade Pix, operação de DICT real ou atomicidade com banco externo.
-Não há onboarding, execução financeira, frontend ou integração bancária real.
-Rotas Sample Entity foram preservadas da base, fora do domínio Pix.
+O PDF oficial exige contrato, três status, histórico, Base Service, testes e este README.
+Normalização, DICT condicional, eventos, locks e protocolos são decisões do
+[guia V3](docs/referencia/GUIA-IMPLEMENTACAO-ANTIFRAUDE-PIX.md). Pesos, cortes, janelas e
+TTL são **experimentais**, sem promessa de calibração, eficácia, conformidade Pix ou
+operação de DICT real. Não há onboarding, execução financeira, frontend ou integração
+bancária real. As rotas de exemplo da base (Sample Entity e connector de boletos) foram
+removidas; permanecem apenas health check e Pix.
 
-[Índice das fontes e revisões](docs/README.md), [hashes originais](docs/fontes.md),
-[contrato do motor](docs/motor-pix.md), [providers](docs/providers-pix.md) e
-[storage/eventos](docs/storage-pix.md). Documentos de cada PR registram a entrega
-naquela data; o estado integrado atual é este README e a matriz final. O ZIP e os
-24 documentos recebidos ficam em `docs/contexto`, sem dependência de runtime.
-Git e arquivos temporários ficam separados; não inicializar Git na pasta pai.
+[Índice da documentação](docs/README.md), [contrato do motor](docs/motor-pix.md),
+[providers](docs/providers-pix.md) e [storage/eventos](docs/storage-pix.md). A referência
+Python V3 e seus testes originais ficam em `docs/referencia/`.

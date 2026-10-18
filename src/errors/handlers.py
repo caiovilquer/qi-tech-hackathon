@@ -11,18 +11,14 @@ from errors.base_error import (
     MethodNotAllowed,
     NotFoundResource,
 )
-from utils.logger import get_logger, escape_for_log
+from utils.logger import get_logger, log_fields
 
 
 logger = get_logger(__name__)
 
 
 def qi_exception_to_response(exception: QIException) -> JSONResponse:
-    """Traduz um erro nosso para a resposta JSON que o cliente recebe.
-
-    Este é o único lugar do projeto que sabe como um erro vira HTTP.
-    Trocar de framework significa reescrever esta função — e mais nada.
-    """
+    """The only place that turns a QIException into the HTTP error envelope."""
     body = {
         "title": exception.title,
         "description": exception.description,
@@ -33,69 +29,39 @@ def qi_exception_to_response(exception: QIException) -> JSONResponse:
 
 
 def describe_validation_error(error: dict) -> str:
-    location = []
-    for part in error.get("loc", []):
-        if part not in ("body", "query"):
-            location.append(str(part))
-
+    location = [str(part) for part in error.get("loc", []) if part not in ("body", "query")]
     message = error.get("msg", "invalid value")
-
-    if location:
-        return f"{message} in {'.'.join(location)}"
-
-    return message
+    return f"{message} in {'.'.join(location)}" if location else message
 
 
 def register_error_handlers(application: FastAPI) -> None:
-    """Ensina a aplicação a responder cada tipo de erro."""
-
     @application.exception_handler(QIException)
     def handle_qi_exception(request: Request, exception: QIException) -> JSONResponse:
+        logger.info("error.response " + log_fields(method=request.method, path=request.url.path,
+                                                   status=exception.http_status, code=exception.code))
         return qi_exception_to_response(exception)
 
     @application.exception_handler(StarletteHTTPException)
     def handle_http_exception(request: Request, exception: StarletteHTTPException) -> JSONResponse:
         if exception.status_code == 404:
             return qi_exception_to_response(NotFoundResource())
-
         if exception.status_code == 405:
             return qi_exception_to_response(MethodNotAllowed())
-
-        logger.error(f"HTTP {exception.status_code} em {escape_for_log(request.url.path)}: {escape_for_log(exception.detail)}")
+        logger.error("error.http " + log_fields(method=request.method, path=request.url.path,
+                                                status=exception.status_code, detail=exception.detail))
         return qi_exception_to_response(InternalError())
 
     @application.exception_handler(RequestValidationError)
     def handle_validation_error(request: Request, exception: RequestValidationError) -> JSONResponse:
         errors = exception.errors()
-
-        if errors:
-            first_error = errors[0]
-        else:
-            first_error = {}
-
+        first_error = errors[0] if errors else {}
         description = describe_validation_error(first_error)
-        origin = first_error.get("loc", [""])[0]
-
-        # Este ramo NAO e alcancado hoje, e vale saber por que — e a
-        # unica pista de que existem duas validacoes neste projeto, nao
-        # uma.
-        #
-        # Quem julga a query string aqui e o JSON Schema, antes do
-        # FastAPI (veja utils/schema_handler.py). Um ?page=-3 morre la,
-        # com 400 QIT000001 — nunca chega a virar RequestValidationError.
-        # E os parametros de endereco sao todos `str`, que nao tem como
-        # falhar validacao.
-        #
-        # O ramo fica de pe para o dia em que alguma rota declarar um
-        # parametro tipado (page: int) e passar a depender do FastAPI
-        # para isso. O QIT000010 que o cliente ve hoje vem de outro
-        # lugar: do controller, quando birthdate_from > birthdate_to.
-        if origin in ("query", "path"):
+        if first_error.get("loc", [""])[0] in ("query", "path"):
             return qi_exception_to_response(InvalidParameter(description))
-
         return qi_exception_to_response(InvalidSchema(description))
 
     @application.exception_handler(Exception)
     def handle_unexpected_error(request: Request, exception: Exception) -> JSONResponse:
-        logger.exception(f"Erro inesperado em {request.method} {escape_for_log(request.url.path)}")
+        logger.exception("error.unexpected " + log_fields(method=request.method, path=request.url.path,
+                                                          error=type(exception).__name__))
         return qi_exception_to_response(InternalError())

@@ -59,8 +59,8 @@ runner não executa transferências nem verifica fatores reais de autenticação
 - PostgreSQL é real; providers externos são adapters de fixtures. Não existe
   certificação de DICT, segurança bancária ou execução financeira real.
 - A existência dos índices é testada e houve scans observados no workload da
-  demo (estatísticas em `validacao-pr6.md`), sem benchmark de carga ou promessa
-  de plano do otimizador para toda distribuição de dados.
+  demo, sem benchmark de carga ou promessa de plano do otimizador para toda
+  distribuição de dados.
 - Testes de falha cobrem pontos controlados de SQL/flush/commit/processo; não
   provam disponibilidade sob qualquer falha de rede, disco ou suspensão do host.
 - `APP_ENV=testing` e prefixo `pix_test_` são guardas operacionais, não autorização

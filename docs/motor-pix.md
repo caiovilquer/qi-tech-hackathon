@@ -159,9 +159,7 @@ Tipos/enums/contadores e configuração agora falham cedo em entradas inválidas
 e objetos de payload/DTO não expõem estado mutável. Não se atribuem essas
 validações aos testes de integração HTTP ou aos providers ainda futuros.
 
-## Correções da revisão independente
+## Validações de borda
 
-[Relatório por achado](CORRECOES-REVISAO-PR2.md), com testes red/green,
-limites, alterações internas de contrato e decisões sobre sugestões opcionais.
 Hora/minuto/segundo são validados explicitamente antes de `fromisoformat`,
 preservando 422/QIT002004 mesmo em runtimes que aceitem `24:00:00`.
