@@ -9,7 +9,8 @@ Caches, ambientes virtuais e temporários ficaram fora do Git.
 
 1. [Prompt independente](REVISAO-PR3.md), [plano](../PLANO-IMPLEMENTACAO.md)
    e [README](../README.md).
-2. [Providers, escopo, histórico e orçamento](providers-pix.md) e
+2. [Correções da revisão](CORRECOES-REVISAO-PR3.md),
+   [providers, escopo, histórico e orçamento](providers-pix.md) e
    [evidências/TDD](validacao-pr3.md).
 3. Guia vigente V3, especialmente §§2, 4, 5 e 8.2; contrato oficial no PDF
    e demais fontes listadas abaixo.

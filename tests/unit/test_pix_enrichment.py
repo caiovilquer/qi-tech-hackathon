@@ -46,7 +46,7 @@ class EnrichmentTests(unittest.IsolatedAsyncioTestCase):
         self.reputation = RecordingReputation(FixtureReputationProvider(IDENTITY))
 
     async def enrich(self, c=None, source=SourceCheck.OWNED, **kwargs):
-        return await Enricher(self.bank, self.reputation, Policy()).enrich(
+        return await Enricher(self.bank, self.reputation, Policy(), clock=lambda: BASE).enrich(
             c or Context(self.p, BASE), source_check=source, deadline=Deadline.after(3), **kwargs)
 
     async def test_first_request_missing_is_true_unknown_and_penalty_once(self):
@@ -190,7 +190,7 @@ class EnrichmentTests(unittest.IsolatedAsyncioTestCase):
                 return security_record()
         self.bank = LateBank(FixtureBankProvider(IDENTITY))
         with self.assertRaises(BudgetExceeded):
-            await Enricher(self.bank, self.reputation, Policy()).enrich(
+            await Enricher(self.bank, self.reputation, Policy(), clock=lambda: BASE).enrich(
                 Context(self.p, BASE), source_check=SourceCheck.OWNED, deadline=Deadline(3, lambda: now[0]))
         self.assertEqual(self.reputation.calls, [])
 

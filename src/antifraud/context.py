@@ -102,7 +102,7 @@ class Pix(ImmutableValue):
         super().__post_init__()
         if type(self.amount_cents) is not int or self.amount_cents <= 0:
             raise ValueError("amount_cents must be a positive integer")
-        if not self.device_id:
+        if not self.device_id.strip():
             raise ValueError("device_id must be explicit and nonempty")
         supported_time(self.transaction_at, "transaction_at")
         aware(self.destination_opened_at)
@@ -293,6 +293,18 @@ class Context(ImmutableValue):
                 raise TypeError(f"Invalid immutable collection: {name}")
         if not isinstance(self.pix, Pix) or self.security is not None and not isinstance(self.security, SecuritySnapshot):
             raise TypeError("Invalid Pix/security context")
+        bank_ids, execution_ids = set(), set()
+        local_ids = {(h.pix.payer, h.pix.id) for h in self.history}
+        local_ids.add((self.pix.payer, self.pix.id))
+        for row in self.bank_payments:
+            identity = (row.pix.payer.tenant, row.provider, row.operation_id)
+            execution = (row.pix.payer.tenant, row.provider, row.execution.event_id)
+            if identity in bank_ids or execution in execution_ids:
+                raise ValueError("Duplicate bank operation or reused execution identity")
+            if (row.pix.payer, row.operation_id) in local_ids:
+                raise ValueError("Bank/local overlap must be reconciled before building Context")
+            bank_ids.add(identity)
+            execution_ids.add(execution)
         roles = []
         for role, item in self.dict_evidence:
             if role not in ("payer", "payee") or not isinstance(item, DictEvidence) or role in roles:

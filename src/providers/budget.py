@@ -58,7 +58,7 @@ class ProviderRunner:
                 if deadline.clock() >= call_expires:
                     raise TimeoutError('Provider returned after call deadline')
                 return value
-            except (TimeoutError, ProviderUnavailable) as error:
+            except (OSError, TimeoutError, ProviderUnavailable) as error:
                 deadline.remaining()
                 if attempt == self.attempts-1:
                     raise ProviderUnavailable('Provider technical attempts exhausted') from error

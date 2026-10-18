@@ -107,3 +107,13 @@ HTTP Pix, integração externa real ou promessa de calibração/conformidade.
 O estado bancário ausente/vencido fica explícito; a recusa HTTP de contexto
 sabidamente vencido é requisito da integração da PR 5, não endpoint desta PR.
 Sem implementar antecipadamente as PRs 4/5. Aguardar revisão e aprovação.
+
+## Após revisão independente
+
+Os resultados anteriores documentam o SHA original 5e2852c. Após verificar os
+cinco achados, a rodada de correções passou **297 testes em 5,00 s** com
+PostgreSQL 16.15 real (83 da base +214 puros), incluindo 19 regressões novas.
+92 testes originais, 59 observações e 2.000 contextos V3 continuam passando.
+Ver [relatório e reprodução da re-revisão](CORRECOES-REVISAO-PR3.md) para o
+estado de cada achado, sequência red/green e limites das correções. SHA exato
+na descrição da PR e nas respostas individuais; nenhuma fonte original editada.

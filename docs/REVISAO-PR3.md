@@ -8,6 +8,12 @@ SHA: confira o commit exato na descrição e em
 Registre o SHA efetivamente revisado. O documento antecede o próprio commit
 para evitar referência circular ao hash.
 
+Para a re-revisão, leia `docs/CORRECOES-REVISAO-PR3.md` e revise
+`git diff 5e2852c239dbd35695eb8030188268d3ac599beb..HEAD`. Verifique cada um
+dos cinco achados e os efeitos das correções, incluindo relógio de resposta,
+watermark do initial_result, vencimento durante consultas, namespace de IDs e
+exceções. SHA atualizado na descrição da PR e nas respostas individuais.
+
 Procure bugs, regressões, falhas de segurança, inconsistências e testes ausentes.
 Não tome testes verdes, TDD ou equivalência com o simulador como prova de
 correção. Reproduza o que puder e diferencie incerteza de problema confirmado.
@@ -101,7 +107,7 @@ PYTHONPATH=src .venv/bin/python -m unittest discover -s tests/unit -p 'test_pix*
 PYTHONPATH=src .venv/bin/python tests/reference/verify_pix_reference.py
 ```
 
-Evidência declarada: baseline 214; final 278 (195 puros +83 HTTP/PostgreSQL da
+Evidência declarada: baseline 214; após revisão 297 (214 puros +83 HTTP/PostgreSQL da
 base), 92 originais e diferencial de 59 observações/2.000 contextos default.
 Confira asserts/limites, não só totais. O exemplo de docs/providers-pix.md é
 executável e não faz rede. Não usar banco do ambiente de uso ou inventar endpoints

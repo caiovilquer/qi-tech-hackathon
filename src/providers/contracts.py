@@ -206,6 +206,15 @@ def validate_payment(row, provider):
 
 
 class BankContextProvider(Protocol):
+    """Current remote reads; as_of is a fixture cutoff/request instant, not time travel.
+
+    Return source occurrence/observation and actual knowledge timestamps even
+    when later than as_of. Enricher captures receipt and final decision times.
+    Translate SDK/network failures into ProviderUnavailable; OSError (including
+    connection errors) and TimeoutError are also technical runner failures.
+    Invalid scope/content raises ProviderDataError without retry. Preserve
+    asyncio cancellation; never block the event loop or suppress cancellation.
+    """
     identity: ProviderIdentity
 
     async def security(self, scope: SecurityScope, as_of: datetime, *, timeout_seconds: float) -> BankRecord: ...
@@ -214,6 +223,12 @@ class BankContextProvider(Protocol):
 
 
 class ReputationProvider(Protocol):
+    """Same timing, technical-error and cancellation contract as BankContextProvider.
+
+    as_of simulates fixture knowledge only; a real DICT lookup returns current
+    evidence, including timestamps after request dispatch. SDK-specific transport
+    errors must be translated to ProviderUnavailable, data to ProviderDataError.
+    """
     identity: ProviderIdentity
 
     async def reputation(self, key: ReputationKey, as_of: datetime, *, timeout_seconds: float) -> ReputationRecord: ...

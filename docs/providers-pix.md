@@ -13,6 +13,13 @@ parâmetros experimentais, sem calibração/conformidade comprovada.
 Os métodos são **async**, recebem `as_of` e `timeout_seconds` fracionário e
 retornam dados normalizados/imutáveis. Fixture e futuro adapter remoto usam
 a mesma assinatura; não há branch de regra `if mock` ou adapter real fictício.
+`as_of` é o instante de despacho/corte das fixtures, **não** uma leitura
+histórica exigida do DICT real. Um adapter remoto informa tempos reais de
+observação/conhecimento, inclusive posteriores ao despacho. O `Enricher`
+usa relógio UTC injetável (`clock`, default servidor), captura o recebimento
+após cada operação e define `Context.decision_at` depois das respostas.
+Testes/fixtures históricos devem injetar seu relógio, em vez de usar o relógio
+atual para simular uma decisão passada. Regressão de relógio falha explicitamente.
 
 - Banco: `security(SecurityScope, as_of, timeout_seconds=...)` e
   `payments(AccountKey, as_of, timeout_seconds=...)`, métodos separados.
@@ -58,9 +65,17 @@ available→stale não é mudança do fato. Nenhum dado vencido vira limpeza.
 `cache_updates` devolve fatos available/stale selecionados para a futura camada
 de persistência. Não há cache global nem escrita em banco aqui. O resultado
 bruto das consultas fica em `lookups`; `initial_result` conserva a cobertura
-verdadeira da checagem inicial, inclusive falha técnica. A PR 4 deve persistir
-ambos no protocolo de posse/fencing, sem tratar indisponibilidade como sucesso
-limpo. Não descartar watermarks expirados ao implementar o storage.
+**selecionada e efetivamente usada** da origem (ou `None` em COMPLETED).
+Com watermark adverso vencido e resposta limpa antiga, `initial_result` é
+stale/adverso; a resposta limpa permanece só em `lookups`. Se o lookup falhar,
+`lookups` registra unavailable e a seleção ainda pode conservar watermark
+stale. `security_lookup` conserva a resposta bancária bruta, distinta de
+`security` selecionado. `received_at` registra o instante local de conclusão
+de security/history e de cada consulta lógica DICT, inclusive falhas esgotadas;
+não duplica recibo por retry nem por papel reaproveitado.
+A PR 4 deve persistir esses materiais no protocolo de posse/fencing, sem tratar
+indisponibilidade como sucesso limpo. Não descartar watermarks expirados ao
+implementar o storage.
 
 O TTL da política é usado nas coberturas sintéticas ausentes/indisponíveis;
 fixtures com dados presentes declaram `valid_until` explicitamente. Não
@@ -86,7 +101,13 @@ universalidade ao TTL de 300 s da demo.
    uma consulta lógica, até um retry, não duas consultas independentes para
    a mesma pessoa. Cobertura desconhecida segue `queried`, nunca `cache` limpo.
 6. Devolve Context imutável, security/history coverage, initial_result,
-   lookups e cache_updates. Não grava análise, reserva, evento ou resultado final.
+   lookups, cache_updates, security_lookup e received_at. Revalida cobertura
+   no instante final. Se um cache usado expirar durante outro lookup, ou o
+   C_pre final passar a exigir consulta antes pulada, lança
+   `EnrichmentNeedsRefresh`, sem devolver decisão. O coordenador futuro deve
+   revalidar dentro do mesmo deadline/ciclos; esta biblioteca não implementa
+   os ciclos nem persistência do resultado inicial em caso de interrupção.
+   Não grava análise, reserva, evento ou resultado final.
 
 Troca de device, rejeição ou indisponibilidade não reinicia o gatilho da origem
 quando o chamador fornece COMPLETED. Isso é testado como decisão da biblioteca,
@@ -116,6 +137,11 @@ ambiguidade. Operações de mesmo valor/instante/destino continuam distintas se
 o ID bancário é distinto. Conflitos de fato/link, dois IDs bancários ligados à
 mesma operação local do mesmo provider e ID de execução reutilizado são erros.
 A conta, titulares, destino, valor e tempos financeiros devem concordar.
+O próprio `Context` também recusa identidades bancárias duplicadas/conflitantes,
+reutilização de ID de execução e sobreposição com IDs locais/da operação atual.
+O repository futuro não pode contornar a reconciliação montando Context em dobro.
+Identidades pertencem ao namespace tenant/provider; providers diferentes podem
+ter o mesmo ID, sem inferir vínculo financeiro entre eles.
 
 Execução vinculada é reaproveitada pela análise local, sem outro pagamento
 importado. Execução sem análise local permanece em `Context.bank_payments`.
@@ -136,7 +162,11 @@ visibilidade de todos os movimentos de uma instituição real.
 `Deadline.after(3)` usa relógio monotônico. O chamador deve criar o orçamento
 no início do futuro request e compartilhar a mesma instância entre operações.
 `ProviderRunner` limita cada tentativa a min(0.25, restante), com no máximo
-**um retry técnico**. Falha de dados não é retry; cancelamento do chamador se
+**um retry técnico**. `OSError` (incluindo reset/refused), `TimeoutError` e
+`ProviderUnavailable` são falhas técnicas. Adapters devem traduzir exceções de
+transporte específicas de seu SDK para `ProviderUnavailable`; dado inválido
+lança `ProviderDataError`. `ValueError`/`RuntimeError` inesperados propagam sem
+retry, sem esconder defeito de implementação como outage. Falha de dados não é retry; cancelamento do chamador se
 propaga; orçamento total esgotado lança `BudgetExceeded`, sem resultado favorável
 tardio. Timeout técnico esgotado, com orçamento total restante, vira cobertura
 unavailable no enriquecimento.
@@ -173,7 +203,7 @@ async def demo():
               '98765432100', DestinationKey('60701190', '3675', '10442'),
               5000, now, datetime(2020, 1, 1, tzinfo=timezone.utc), 'observed-device')
     identity = ProviderIdentity('synthetic-demo', 'v1')
-    outcome = await Enricher(FixtureBankProvider(identity), FixtureReputationProvider(identity), Policy()).enrich(
+    outcome = await Enricher(FixtureBankProvider(identity), FixtureReputationProvider(identity), Policy(), clock=lambda: now).enrich(
         Context(pix, now), source_check=SourceCheck.OWNED, deadline=Deadline.after(3))
     decision = evaluate(outcome.context)
     print(decision.status, decision.score, outcome.security.state,
@@ -186,3 +216,13 @@ Saída: `approved 10 not_covered {'payer': 'queried', 'payee': 'queried'}`.
 É uma simulação explícita da biblioteca com R$50 e dados ausentes, não uma
 análise persistida/HTTP ou prova de posse concorrente. O score vem das regras;
 o adapter não retorna aprovação fixa.
+
+## Validação de device na fronteira
+
+Device contendo apenas whitespace é erro de entrada 400 `QIT000001`, path
+`source.device_id`, antes de providers/reserva. O motor puro também o recusa.
+Device não vazio mantém todos os bytes/caracteres, inclusive espaços nas pontas;
+não normalizar a identidade por strip. É uma restrição local adotada para
+alinhar contrato e `SecurityScope`, não uma exigência atribuída ao PDF. O schema
+oficial e as fontes históricas foram preservados, com a validação semântica
+no normalizador de runtime. Não há mudança nos três status ou no dinheiro.
