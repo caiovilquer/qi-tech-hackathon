@@ -477,5 +477,16 @@ class StrictJsonTests(unittest.TestCase):
         self.assertEqual(parse_payload_json('{"\\ud83d\\ude00": "válido"}'), {"😀": "válido"})
 
 
+    def test_error_path_names_non_finite_and_extra_fields(self):
+        raw = json.dumps(OFFICIAL_PAYLOAD)[:-1] + ', "ratio": NaN}'
+        with self.assertRaises(ValidationError) as caught:
+            parse_payload_json(raw)
+        self.assertEqual(caught.exception.path, "ratio")
+        payload = deepcopy(OFFICIAL_PAYLOAD)
+        payload["source"]["unexpected"] = 1
+        with self.assertRaises(ValidationError) as caught:
+            normalize_json(json.dumps(payload))
+        self.assertEqual(caught.exception.path, "source.unexpected")
+
 if __name__ == "__main__":
     unittest.main()

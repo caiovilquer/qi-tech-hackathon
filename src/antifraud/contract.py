@@ -90,17 +90,42 @@ def _validate_jsonb_strings(payload: Any) -> None:
                 pending.extend((child, f"{path}[{index}]") for index, child in enumerate(value))
 
 
+class _NonFiniteConstant:
+    """Marca NaN/Infinity para que o objeto pai informe a chave na resposta."""
+
+    def __init__(self, value: str) -> None:
+        self.value = value
+
+
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result = {}
     for key, value in pairs:
         if key in result:
             raise ValidationError(400, "QIT000001", "Chave JSON duplicada.", key)
+        children = value if isinstance(value, list) else (value,)
+        for child in children:
+            if isinstance(child, _NonFiniteConstant):
+                raise ValidationError(
+                    400, "QIT000001", f"Constante JSON nao finita: {child.value}.", key
+                )
         result[key] = value
     return result
 
 
-def _reject_constant(value: str) -> None:
-    raise ValidationError(400, "QIT000001", f"Constante JSON nao finita: {value}.")
+def _reject_constant(value: str) -> _NonFiniteConstant:
+    return _NonFiniteConstant(value)
+
+
+def _reject_nested_constants(value: Any, path: str = "") -> None:
+    # Cobre NaN dentro de listas aninhadas, que _unique_object nao percorre.
+    if isinstance(value, _NonFiniteConstant):
+        raise ValidationError(400, "QIT000001", f"Constante JSON nao finita: {value.value}.", path)
+    if isinstance(value, dict):
+        for key, child in value.items():
+            _reject_nested_constants(child, f"{path}.{key}" if path else key)
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _reject_nested_constants(child, f"{path}[{index}]")
 
 
 def parse_payload_json(raw: str | bytes) -> dict[str, Any]:
@@ -129,6 +154,7 @@ def parse_payload_json(raw: str | bytes) -> dict[str, Any]:
         raise ValidationError(400, "QIT000001", "Corpo JSON invalido.") from error
     if not isinstance(payload, dict):
         raise ValidationError(400, "QIT000001", "Corpo JSON deve ser objeto.")
+    _reject_nested_constants(payload)
     _validate_jsonb_strings(payload)
 
     amount = payload.get("amount")
@@ -224,7 +250,14 @@ def normalize_payload(payload: dict[str, Any]) -> NormalizedPayload:
     try:
         _VALIDATOR.validate(payload)
     except JsonSchemaValidationError as error:
-        path = ".".join(str(part) for part in error.absolute_path)
+        parts = [str(part) for part in error.absolute_path]
+        if error.validator == "additionalProperties" and isinstance(error.instance, dict):
+            # O caminho do jsonschema aponta para o objeto pai; reporta a chave extra.
+            known = error.schema.get("properties", {})
+            extra = sorted(key for key in error.instance if key not in known)
+            if extra:
+                parts.append(extra[0])
+        path = ".".join(parts)
         raise ValidationError(400, "QIT000001", error.message, path) from error
 
     if not payload["id"].isprintable():
