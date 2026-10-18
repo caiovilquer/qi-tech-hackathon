@@ -65,7 +65,10 @@ available→stale não é mudança do fato. Nenhum dado vencido vira limpeza.
 `cache_updates` devolve fatos available/stale selecionados para a futura camada
 de persistência. Não há cache global nem escrita em banco aqui. O resultado
 bruto das consultas fica em `lookups`; `initial_result` conserva a cobertura
-**selecionada e efetivamente usada** da origem (ou `None` em COMPLETED).
+**selecionada na conclusão da checagem inicial** da origem. Sem retomada, é
+`None` em COMPLETED. Esse registro é congelado na conclusão; uma retomada
+preserva-o, inclusive unavailable, e revalida separadamente os fatos usados
+no contexto atual. Não é um atestado de validade eterna.
 Com watermark adverso vencido e resposta limpa antiga, `initial_result` é
 stale/adverso; a resposta limpa permanece só em `lookups`. Se o lookup falhar,
 `lookups` registra unavailable e a seleção ainda pode conservar watermark
@@ -102,12 +105,15 @@ universalidade ao TTL de 300 s da demo.
    a mesma pessoa. Cobertura desconhecida segue `queried`, nunca `cache` limpo.
 6. Devolve Context imutável, security/history coverage, initial_result,
    lookups, cache_updates, security_lookup e received_at. Revalida cobertura
-   no instante final. Se um cache usado expirar durante outro lookup, ou o
-   C_pre final passar a exigir consulta antes pulada, lança
-   `EnrichmentNeedsRefresh`, sem devolver decisão. O coordenador futuro deve
-   revalidar dentro do mesmo deadline/ciclos; esta biblioteca não implementa
-   os ciclos nem persistência do resultado inicial em caso de interrupção.
-   Não grava análise, reserva, evento ou resultado final.
+   no instante final. **Qualquer segurança bancária conhecida e stale** exige
+   refresh, inclusive revogação/limite que venceram durante DICT ou histórico;
+   não devolve Context que permita aprovação por ter perdido esses sinais.
+   Cache de reputação usado que vence e C_pre final exigindo consulta ausente
+   também lançam `EnrichmentNeedsRefresh`, sem devolver decisão.
+   A exceção contém `partial: EnrichmentProgress`, com material normalizado
+   para persistência e retomada. O coordenador futuro controla os ciclos e
+   confirma posse/fencing antes de persistir. A biblioteca não grava análise,
+   reserva, evento ou resultado inicial durável.
 
 Troca de device, rejeição ou indisponibilidade não reinicia o gatilho da origem
 quando o chamador fornece COMPLETED. Isso é testado como decisão da biblioteca,
@@ -119,6 +125,38 @@ persistir conclusão inclusive indisponível, exatamente como guia §8.2.
 versão, operação, permissão, proveniência e estados usados/consultados. Distingue
 falha de lookup de evidência antiga ainda conhecida. Resposta pública continua
 com três chaves de topo e sem prontuário/documentos de terceiros.
+
+## Retomada no mesmo request
+
+`EnrichmentNeedsRefresh.partial` é imutável e não contém Context/decisão.
+Conserva `initial_result`, respostas DICT brutas (`lookups`), fatos selecionados
+(`selected`/`cache_updates`), segurança selecionada/bruta e recibos acumulados.
+O resultado bem-sucedido oferece o mesmo material em `Enrichment.progress`.
+Somente os dados normalizados são material de persistência: o objeto de
+continuação contém o deadline/callable local e **não** é um registro durável.
+
+Retomar com `enrich(base_atualizado, ..., deadline=mesmo_deadline,
+resume=error.partial)`. São conferidos Pix, tenant/conta/device/destino,
+providers/versões, permissão, política e identidade do deadline. Material com
+sujeito/tenant divergente falha antes dos providers. Não reutilizar entre
+requests, nem criar outro deadline para ganhar 3 s extras. A checagem pode
+continuar OWNED na mesma posse ou passar a COMPLETED após confirmação durável
+pelo coordenador; completed não reabre a origem como owned.
+
+Cada ciclo busca segurança/histórico atuais e reaplica watermarks anteriores.
+O resultado inicial já concluído não é substituído nem dispara outra consulta
+inicial. Respostas disponíveis vigentes são reaproveitadas; ausências/falhas
+são memoizadas somente nesse request, inclusive mesma pessoa nos dois papéis,
+sem se tornarem cache limpo ou sofrerem novos retries técnicos a cada ciclo.
+Um destinatário cujo fato disponível expirou pode exigir leitura de refresh;
+isso não reinicia a checagem inicial da origem. Fatos expirados não ganham TTL
+novo. Recibos e respostas brutas acumulam sem reemitir recibo por reaproveitamento.
+
+Os ciclos PostgreSQL/locks, limite de três revalidações e tratamento de crash
+continuam responsabilidade da integração futura. Sem evidência estabilizada
+ou orçamento restante, não converter refresh/BudgetExceeded em aprovação.
+Relógio UTC regressivo continua erro explícito; o orçamento usa relógio
+monotônico separado. Não foi adotado clamp de UTC que esconda o descompasso.
 
 ## Histórico bancário sem análises fictícias
 
@@ -162,8 +200,10 @@ visibilidade de todos os movimentos de uma instituição real.
 `Deadline.after(3)` usa relógio monotônico. O chamador deve criar o orçamento
 no início do futuro request e compartilhar a mesma instância entre operações.
 `ProviderRunner` limita cada tentativa a min(0.25, restante), com no máximo
-**um retry técnico**. `OSError` (incluindo reset/refused), `TimeoutError` e
-`ProviderUnavailable` são falhas técnicas. Adapters devem traduzir exceções de
+**um retry técnico**. `ConnectionError` (incluindo reset/refused),
+`TimeoutError`, `socket.gaierror` e `ProviderUnavailable` são falhas técnicas.
+`FileNotFoundError`, `PermissionError`, `ssl.SSLError` e demais OSError não
+classificados propagam sem retry; problema de configuração não vira outage. Adapters devem traduzir exceções de
 transporte específicas de seu SDK para `ProviderUnavailable`; dado inválido
 lança `ProviderDataError`. `ValueError`/`RuntimeError` inesperados propagam sem
 retry, sem esconder defeito de implementação como outage. Falha de dados não é retry; cancelamento do chamador se

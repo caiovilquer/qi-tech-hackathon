@@ -35,7 +35,7 @@ A PR 3 acrescenta contratos e adapters simulados em `src/providers/`,
 validação de escopo/versão/validade, DICT condicional, orçamento de chamadas e
 reconciliação de execuções bancárias sem fabricar solicitações da API.
 [Interfaces e limites](docs/providers-pix.md), [evidências/TDD](docs/validacao-pr3.md)
-e [correções da revisão](docs/CORRECOES-REVISAO-PR3.md).
+e [correções da re-revisão](docs/CORRECOES-REREVISAO-PR3.md).
 
 Não há endpoints/análises persistidas Pix, idempotência Pix ou integração
 externa real nesta etapa. Os tipos de eventos são entradas do motor; ingestão e
@@ -110,8 +110,8 @@ nome em `-p`. Migrations são exercitadas em bancos aleatórios adicionais,
 criados e removidos no servidor de testes (o usuário local de testes precisa
 poder criar bancos). A API não ganha endpoints administrativos para isso.
 
-Execução local após revisão: **297 testes passaram** (83 HTTP/PostgreSQL da base +
-214 testes puros), incluindo os 35 testes HTTP originais. A comparação
+Execução local após revisão: **312 testes passaram** (83 HTTP/PostgreSQL da base +
+229 testes puros), incluindo os 35 testes HTTP originais. A comparação
 separada reproduziu **59 observações** e **2.000 contextos** com decisão completa
 igual à referência V3. O CI faz essa comparação montando as fontes somente
 para leitura no container de testes. Esses números não comprovam HTTP/Pix,

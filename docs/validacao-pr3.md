@@ -117,3 +117,12 @@ PostgreSQL 16.15 real (83 da base +214 puros), incluindo 19 regressões novas.
 Ver [relatório e reprodução da re-revisão](CORRECOES-REVISAO-PR3.md) para o
 estado de cada achado, sequência red/green e limites das correções. SHA exato
 na descrição da PR e nas respostas individuais; nenhuma fonte original editada.
+
+## Após segunda rodada de revisão
+
+A re-revisão de 4e0fdcb confirmou os cinco achados anteriores e apontou dois
+novos. As correções e uma sugestão de classificação de transporte passaram
+**312 testes em 5,13 s** com PostgreSQL 16.15 real (83 da base +229 puros),
+incluindo **15 regressões novas**. Referência: 92 originais, 59 observações e
+2.000 contextos preservados. Ver [relatório atual](CORRECOES-REREVISAO-PR3.md)
+para payload parcial/retomada, gatilhos de refresh e comandos reproduzíveis.

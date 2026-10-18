@@ -210,8 +210,9 @@ class BankContextProvider(Protocol):
 
     Return source occurrence/observation and actual knowledge timestamps even
     when later than as_of. Enricher captures receipt and final decision times.
-    Translate SDK/network failures into ProviderUnavailable; OSError (including
-    connection errors) and TimeoutError are also technical runner failures.
+    Translate SDK/network failures into ProviderUnavailable; ConnectionError, TimeoutError and socket.gaierror are
+    technical runner failures. File, permission and SSL configuration errors
+    propagate; do not translate configuration/programming errors into outages.
     Invalid scope/content raises ProviderDataError without retry. Preserve
     asyncio cancellation; never block the event loop or suppress cancellation.
     """

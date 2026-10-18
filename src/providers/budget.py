@@ -2,6 +2,7 @@
 import asyncio
 from dataclasses import dataclass, field
 import math
+from socket import gaierror
 from time import monotonic
 from typing import Callable
 
@@ -58,7 +59,7 @@ class ProviderRunner:
                 if deadline.clock() >= call_expires:
                     raise TimeoutError('Provider returned after call deadline')
                 return value
-            except (OSError, TimeoutError, ProviderUnavailable) as error:
+            except (ConnectionError, TimeoutError, gaierror, ProviderUnavailable) as error:
                 deadline.remaining()
                 if attempt == self.attempts-1:
                     raise ProviderUnavailable('Provider technical attempts exhausted') from error

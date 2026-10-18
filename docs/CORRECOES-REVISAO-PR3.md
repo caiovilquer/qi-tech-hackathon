@@ -1,5 +1,9 @@
 # Correções da revisão independente — PR 3
 
+Histórico da primeira rodada, no SHA 4e0fdcb. O estado atual e as duas
+correções posteriores estão em [re-revisão](CORRECOES-REREVISAO-PR3.md),
+que substitui os limites de refresh/transporte descritos nesta rodada.
+
 PR: https://github.com/caiovilquer/qi-tech-hackathon/pull/3
 Branch: `feat/pix-providers`.
 SHA originalmente revisado: `5e2852c239dbd35695eb8030188268d3ac599beb`.

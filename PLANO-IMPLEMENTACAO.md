@@ -124,7 +124,8 @@ sujeito errado, versões conflitantes, cancelamento/revogação, evidência adve
 com C_pre alto; histórico futuro/tardio/maduro e reconciliação sem duplicação.
 **Entrega e evidências:** [providers](docs/providers-pix.md),
 [validação](docs/validacao-pr3.md), [prompt da PR 3](docs/REVISAO-PR3.md) e
-[correções da revisão](docs/CORRECOES-REVISAO-PR3.md).
+[correções da revisão](docs/CORRECOES-REVISAO-PR3.md) e
+[re-revisão](docs/CORRECOES-REREVISAO-PR3.md).
 **Riscos:** indisponibilidade tratada como limpeza; confiança fora de escopo;
 timeout de socket confundido com deadline total.
 

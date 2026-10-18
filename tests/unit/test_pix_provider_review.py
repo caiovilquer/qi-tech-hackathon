@@ -196,19 +196,22 @@ class KnowledgeClockTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(e.state == 'not_covered' for _, e in out.context.dict_evidence))
         self.assertTrue(all(r.evidence.fraud_count == 3 for r in out.lookups))
 
-    async def test_security_expiring_during_lookup_is_stale_at_final_decision(self):
+    async def test_security_expiring_during_lookup_requires_refresh_with_stale_material(self):
+        from providers.enrichment import EnrichmentNeedsRefresh
         wall = [BASE]
         class Reputation:
             identity = IDENTITY
             async def reputation(self, key, as_of, *, timeout_seconds):
                 wall[0] += timedelta(seconds=1)
                 return reputation_record(key.document)
-        out = await Enricher(FixtureBankProvider(IDENTITY, (security_record(valid_until=BASE+timedelta(seconds=1)),)),
-            Reputation(), Policy(), clock=lambda: wall[0]).enrich(
-                Context(example_pix('current'), BASE), source_check=SourceCheck.OWNED, deadline=Deadline.after(3))
-        self.assertEqual(out.security.state, 'stale')
-        self.assertFalse(out.context.security.valid(out.context.decision_at))
-        self.assertEqual(out.security_lookup.state, 'available')
+        with self.assertRaises(EnrichmentNeedsRefresh) as caught:
+            await Enricher(FixtureBankProvider(IDENTITY, (security_record(valid_until=BASE+timedelta(seconds=1)),)),
+                Reputation(), Policy(), clock=lambda: wall[0]).enrich(
+                    Context(example_pix('current'), BASE), source_check=SourceCheck.OWNED, deadline=Deadline.after(3))
+        partial = caught.exception.partial
+        self.assertEqual(partial.security.state, 'stale')
+        self.assertFalse(partial.security.snapshot.valid(partial.captured_at))
+        self.assertEqual(partial.security_lookup.state, 'available')
 
     async def test_cache_expiring_during_another_lookup_requires_refresh(self):
         from providers.enrichment import EnrichmentNeedsRefresh
