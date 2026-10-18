@@ -1,0 +1,20 @@
+name: Tests
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  postgres-http:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test against PostgreSQL 16
+        run: docker compose -p pix-ci -f compose.test.yml up --build --abort-on-container-exit --exit-code-from tests tests
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose -p pix-ci -f compose.test.yml logs --no-color
+      - name: Remove test stack
+        if: always()
+        run: docker compose -p pix-ci -f compose.test.yml down -v --remove-orphans

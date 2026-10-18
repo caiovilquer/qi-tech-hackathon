@@ -42,6 +42,7 @@ class ClientRequisition:
                 cert=cert,
                 verify=verify,
                 params=query_params,
+                timeout=10,
             )
         except RequestsConnectionError:
             raise RuntimeError(API_OFFLINE.format(base_url=base_url)) from None
@@ -77,7 +78,5 @@ class BaseConnectorResponse:
         self.response_json = None
         try:
             self.response_json = json.loads(self.response_content)
-        except Exception as ex:
-            print(ex)
-            ...
-            # logger warning
+        except (ValueError, UnicodeError):
+            self.response_json = None

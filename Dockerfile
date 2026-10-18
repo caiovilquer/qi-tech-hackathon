@@ -7,14 +7,27 @@ RUN adduser --system --no-create-home user
 ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -m venv "$VIRTUAL_ENV"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+ENV PYTHONPATH=/opt/pix
+ENV PYTHONDONTWRITEBYTECODE=1
 
 # Copiar so o requirements primeiro faz o Docker reaproveitar o cache:
 # enquanto as dependencias nao mudam, ele nao reinstala tudo de novo.
 COPY requirements.txt /requirements.txt
-RUN pip install --upgrade pip && pip install -r /requirements.txt
+COPY requirements.lock /requirements.lock
+RUN pip install -r /requirements.txt -c /requirements.lock
 
 WORKDIR /app
 COPY src /app
+COPY migrations /opt/pix/migrations
+
+FROM base AS test
+COPY requirements-dev.txt /requirements-dev.txt
+RUN pip install -r /requirements-dev.txt -c /requirements.lock
+WORKDIR /workspace
+COPY . /workspace
+RUN chown -R user /workspace
+USER user
+CMD ["python", "-m", "pytest", "-q"]
 
 FROM base AS api
 RUN chown -R user /app
@@ -22,5 +35,5 @@ USER user
 
 # --no-server-header: o uvicorn nao anuncia a propria versao, que e
 # informacao de menos pra quem procura uma versao com falha conhecida.
-CMD uvicorn app:app --host 0.0.0.0 --port 3000 --no-server-header
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "3000", "--no-server-header"]
 

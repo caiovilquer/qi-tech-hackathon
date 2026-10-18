@@ -1,5 +1,9 @@
 # Como o projeto é organizado
 
+> Texto didático recebido com a base. Para inicialização, migrations e testes,
+> seguir o [README atual](../README.md). A suíte agora exige banco de testes
+> separado e usa migrations; não executar resets no banco do ambiente de uso.
+
 Dentro de `src/` tem dez pastas. Para um programa que responde oito
 endereços, parece muita pasta — e no começo assusta mesmo.
 
