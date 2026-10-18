@@ -24,10 +24,10 @@ não deve ser reaproveitada para outra instituição. O ISPB de origem fica no
 snapshot privado; o canônico e o DTO oficial mantêm o contrato fornecido.
 
 Sample entity preserva sua autenticação original. Credencial Pix desconhecida
-retorna 403 `QIT000002`. Receipts anônimos não guardam token/corpo; falha de banco
-nessa auditoria é logada e não transforma uma autenticação recusada em acesso.
+retorna 403 `QIT000002` sem consultar/escrever no banco. Tentativas anônimas
+ficam apenas no logger existente, sem token/corpo e sem consumo do pool SQL.
 
-`create_app()` monta `PixController(PixStorage(SessionLocal), bank, reputation)`.
+`create_app()` monta `PixController(PixStorage(PixSessionLocal), bank, reputation)`.
 Os providers padrão são `FixtureBankProvider(fixture-bank/v1)` e
 `FixtureReputationProvider(fixture-dict/v1)`, com dataset explicitamente vazio:
 retornam **not_covered**, nunca autorização de dispositivo ou reputação limpa.
@@ -49,6 +49,7 @@ Adapters remotos futuros implementam os mesmos protocolos assíncronos.
 | Nova análise, approved/two_factor_required/rejected | 201 após commit confirmado |
 | Mesmo tenant/ID/hash | 200 com DTO original; sem providers |
 | Mesmo tenant/ID, hash diferente, inclusive em voo | 409 QIT002002 |
+| Titularidade/vínculo financeiro precisa de reconciliação institucional | 409 QIT002010; reconciliar antes de retry |
 | GET por ID externo concluído | 200 com DTO original |
 | GET sem análise no tenant, inclusive apenas claim | 404 QIT002001 |
 | JSON/schema/tipos/formatos inválidos | 400 QIT000001 |
@@ -65,9 +66,12 @@ Não há um quarto status antifraude para processamento ou erro técnico.
 `PixResource` lê incrementalmente até 65.536 bytes antes de chamar
 `parse_payload_json`/`normalize_payload`; não usa `request.json`, Pydantic/dict ou float para dinheiro.
 Limite exato é aceito; o corpo bruto não é armazenado. O canônico e a auditoria
-preservam todos os campos oficiais e a qualidade de IP. Receipts mínimos são
+preservam todos os campos oficiais e a qualidade de IP. Receipts mínimos de POST autenticado são
 persistidos antes de ler/validar o corpo, depois associados ao ID/hash extraídos;
-inválidos/replays não viram novas análises nem tentativas pontuadas.
+inválidos/replays não viram novas análises nem tentativas pontuadas. Se a gravação
+mínima falhar, o corpo ainda pode ser validado dentro do prazo: um erro conhecido
+400/413/422 é preservado e a falha de auditoria é logada, sem alegar persistência.
+Entrada válida sem receipt confiável retorna 503 antes de claims/providers.
 
 ## Protocolo do coordenador
 
@@ -96,7 +100,9 @@ inválidos/replays não viram novas análises nem tentativas pontuadas.
    ciclos, sujeitos ao mesmo deadline. Sem estabilização, 503 sem análise parcial.
 7. Avaliar o motor e confirmar Pix/análise/DTO/claim/receipt em um único commit.
    Só então 201. Apenas SQLSTATE 23505 com `uq_pix_tenant_external_id` permite
-   tentar ler um vencedor como replay/conflito; outras constraints não são replay.
+   ler um vencedor concluído como replay/conflito, sem adquirir outro claim; outras
+   constraints não são replay. Pix sem análise continua 503. O preflight reconhece
+   o DTO já durável sem providers, mantendo a precedência do hash reservado.
 
 Pagamentos importados não viram receipts/análises fictícios. Os fatos completos
 usados ficam congelados em `snapshot.bank_payments`, além de seus identificadores
@@ -104,6 +110,12 @@ nas features. Dados fora da janela comportamental não exigem carregar análises
 locais antigas apenas para descartá-las no cálculo; decisões puras são preservadas.
 
 ## Deadline e falhas
+
+O contexto e os recebimentos sintéticos do Enricher usam `DatabaseClock`: UTC
+ancorado em `clock_timestamp()` do PostgreSQL, avançado pelo tempo monotônico.
+Skew do relógio de parede do app não cria cobertura inicial no futuro. Timestamps
+das fontes não são corrigidos por tolerância/clamp; fonte realmente futura
+continua desconhecida e a guarda de conclusão inicial permanece ativa.
 
 O orçamento monotônico de **3 s** começa no middleware Pix e inclui corpo,
 threadpool, SQL, espera por reservas e providers. Reservam-se 100 ms desse mesmo
@@ -114,8 +126,11 @@ Segurança sabidamente vencida precisa ser renovada ou a análise falha com 503.
 
 SQL síncrono vai ao threadpool. O orçamento acompanha o worker por ContextVar;
 timeouts PostgreSQL são recalculados antes de cada statement, flush e commit.
-Lock timeout é no máximo 1 s e nunca supera o prazo restante. Pool de conexões
-espera até 100 ms e novas conexões usam connect_timeout de 1 s. A espera HTTP é
+Lock timeout é no máximo 1 s e nunca supera o prazo restante. O pool **exclusivo Pix**
+espera até 100 ms e novas conexões usam connect_timeout de 1 s. A Base API mantém
+seu pool original (checkout padrão de 30 s e sem connect_timeout imposto). Os dois
+pools podem abrir até 30 conexões por processo (5 + 10 de overflow cada);
+dimensionar workers e a capacidade PostgreSQL em conjunto. A espera HTTP é
 cancelável; worker que começou tarde não inicia SQL e não confirma nova transação
 com orçamento vencido. Não se afirma que cancelar uma coroutine mata uma thread.
 
@@ -132,6 +147,12 @@ retentativa antes de expirar pode retornar 503. Não há atomicidade com uma fon
 bancária externa que mude depois do snapshot, nem garantia de tempo real diante
 de suspensão do processo/host. O banco chamador mantém os controles finais antes
 de executar qualquer operação. Eventos seguem a API interna confiável da etapa 4.
+
+Conflitos QIT002010 preservam o primeiro hash e liberam somente as leases do dono
+por owner/fence, permitindo a continuação após reconciliação sem espera artificial.
+Se mudar o corpo, usar outro ID. Não há API de reatribuição de titularidade nem
+inferência automática de vínculo. Logs escapam controles/Unicode em path/query.
+Correções e ressalvas da revisão: [CORRECOES-REVISAO-PR5.md](CORRECOES-REVISAO-PR5.md).
 
 Validação/TDD: [validacao-pr5.md](validacao-pr5.md). Revisão:
 [REVISAO-PR5.md](REVISAO-PR5.md). A etapa 6 permanece para aceitação/demonstração e

@@ -203,6 +203,21 @@ class PixStorage:
                 raise Busy(f'{label} is held by a live owner; retry within the request deadline') from error
             raise
 
+    @staticmethod
+    def _winner(repository,tenant,external_id,payload_hash):
+        row=repository.local(tenant,external_id)  # INNER JOIN: a Pix alone is not an analysis.
+        if row is None:
+            return None
+        if row['payload_hash']!=payload_hash:
+            raise HashConflict('Persisted winner has another canonical payload')
+        return Replay(repository.dto(row))
+
+    def resolve_duplicate(self,tenant,external_id,payload_hash):
+        """Read the completed winner after rollback; never acquire another claim."""
+        identity(tenant,external_id,payload_hash)
+        with self.read() as r:
+            return self._winner(r,tenant,external_id,payload_hash)
+
     def claim(self,tenant,external_id,payload_hash,*,lock_timeout_ms=1000):
         identity(tenant,external_id,payload_hash)
         with self.read() as r:
@@ -213,8 +228,11 @@ class PixStorage:
             if row is not None:
                 if row['payload_hash']!=payload_hash:
                     raise HashConflict('Tenant/ID permanently reserved with another payload')
+                winner=self._winner(r,tenant,external_id,payload_hash)
+                if winner is not None:
+                    return winner
                 if row['state']=='completed':
-                    return Replay(r.get(tenant,external_id))
+                    raise ValueError('Completed reservation has no analysis')
         owner=uuid4()
         with self.coordination('Operation reservation',lock_timeout_ms=lock_timeout_ms) as r:
             values=dict(tenant_id=tenant,external_id=external_id,payload_hash=payload_hash,owner_id=owner,
@@ -235,6 +253,19 @@ class PixStorage:
                     external_id=external_id)).values(owner_id=owner,fencing_token=fence,
                         lease_until=func.clock_timestamp()+LEASE).returning(m.analysis_claim.c.lease_until)).scalar_one()
             return ClaimTicket(tenant,external_id,payload_hash,owner,fence,lease)
+
+    def release_reservations(self,ticket,initial=None):
+        """Relinquish only this owner's leases; permanent identity/hash stay intact."""
+        with self.write() as r:
+            result=r.session.execute(m.analysis_claim.update().where(scope(m.analysis_claim,
+                tenant_id=ticket.tenant,external_id=ticket.external_id,payload_hash=ticket.payload_hash,
+                owner_id=ticket.owner,fencing_token=ticket.fence,state='in_progress'))
+                .values(lease_until=func.clock_timestamp()))
+            if result.rowcount and initial is not None:
+                r.session.execute(m.source_initial.update().where(scope(m.source_initial,
+                    **initial_key(initial.payer),claim_external_id=ticket.external_id,
+                    owner_id=initial.owner,fencing_token=initial.fence,state='in_progress'))
+                    .values(lease_until=func.clock_timestamp()))
 
     def claim_initial(self,ticket,payer,*,lock_timeout_ms=1000):
         account(payer)

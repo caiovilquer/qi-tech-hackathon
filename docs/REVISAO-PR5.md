@@ -4,6 +4,8 @@ Revise a PR da branch `feat/pix-api` contra `origin/main` base
 `3daa579ef040e49f3f242a1bf7b39d01f9aefabc`. O link e SHA exato submetido estão na
 descrição da PR e no prompt entregue com ela; registre o HEAD efetivamente lido.
 
+Correções e prompt de re-revisão: `docs/CORRECOES-REVISAO-PR5.md`.
+
 Objetivo: POST/GET oficiais com parser de bytes, tenant/ISPB pela credencial,
 claims e inicial duráveis, providers fora de locks, revalidação até três ciclos,
 commit atômico e replay imutável. SQL real e espera HTTP sujeitos ao mesmo orçamento

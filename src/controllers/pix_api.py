@@ -10,15 +10,15 @@ from sqlalchemy.exc import DBAPIError
 from antifraud.adapter import to_pix
 from antifraud.contract import parse_payload_json, normalize_payload, ValidationError
 from antifraud.engine import preliminary
-from dtos.pix_storage import Busy, HashConflict, Replay, EventInput
+from dtos.pix_storage import Busy, HashConflict, Replay, EventInput, OwnershipConflict
 from controllers.pix_storage import identity
 from errors.pix import PixError
 from providers.budget import Deadline, BudgetExceeded
-from providers.contracts import ReputationKey, SecurityScope, ProviderDataError
-from providers.enrichment import Enricher, EnrichmentNeedsRefresh, SourceCheck, utc_now
+from providers.contracts import ReputationKey, SecurityScope, ProviderDataError, ReconciliationRequired
+from providers.enrichment import Enricher, EnrichmentNeedsRefresh, SourceCheck
 from providers.selection import select_security, select_reputation, reconcile_payments
 from utils.logger import get_logger
-from utils.pix_deadline import in_database
+from utils.pix_deadline import in_database, DatabaseClock
 from utils.pix_storage_codec import fingerprint
 
 logger = get_logger(__name__)
@@ -111,12 +111,13 @@ class PixController:
 
     def _base(self, pix, policy):
         with self.storage.read() as r:
-            now=utc_now()
+            clock=DatabaseClock(r.now())
+            now=clock()
             keys=tuple(ReputationKey(pix.payer.tenant,doc,self.reputation.identity,'person_reputation','pix')
                        for doc in (pix.payer.document,pix.payee_document))
             cached=tuple(record for key in keys if (record:=r.reputation(key,now)) is not None)
             return (r.context(pix,now,policy),cached,
-                    r.security(SecurityScope.from_pix(pix),self.bank.identity,now),r.bank_links(pix.payer))
+                    r.security(SecurityScope.from_pix(pix),self.bank.identity,now),r.bank_links(pix.payer),clock)
 
     def _persist(self, enrichment):
         with self.storage.write() as r:
@@ -124,9 +125,18 @@ class PixController:
         # Executions reconciled to local analyses must become durable local facts
         # before entering the final account transaction. Never infer a bank link.
         with self.storage.read() as r:
-            base=r.context(enrichment.context.pix,utc_now(),enrichment.progress.policy)
+            base=r.context(enrichment.context.pix,r.now(),enrichment.progress.policy)
             locals_={h.pix.id:h for h in base.history if h.pix.payer==base.pix.payer}
-            missing=set(enrichment.context.execution_events)-set(base.execution_events)
+            def event_identity(e):
+                return e.payer,e.pix_id,e.event_id
+            known={event_identity(e):e for e in base.execution_events}
+            missing=[]
+            for candidate in enrichment.context.execution_events:
+                previous=known.get(event_identity(candidate))
+                if previous is None:
+                    missing.append(candidate)
+                elif (previous.state,previous.occurred_at)!=(candidate.state,candidate.occurred_at):
+                    raise ReconciliationRequired('Conflicting bank execution identity')
             events=[]
             for e in missing:
                 if e.available_at>base.decision_at or e.occurred_at>base.decision_at:
@@ -185,6 +195,7 @@ class PixController:
     async def post(self, raw, tenant, policy, receipt, total):
         # Reserve 100 ms of the same 3 s total for finalizing an error receipt.
         deadline=Deadline(total.expires_at-.1,total.clock)
+        ticket=initial=None
         try:
             parsed=parse_payload_json(raw)
             try:
@@ -193,9 +204,16 @@ class PixController:
                 # An invalid Pix is never a claim/analysis. Preserve a readable ID
                 # when it can be extracted unambiguously, without inventing a hash.
                 candidate=parsed.get('id') if isinstance(parsed,dict) else None
-                if isinstance(candidate,str) and candidate.isprintable() and 1<=len(candidate)<=128:
-                    await in_database(deadline,self.storage.identify_receipt,receipt,tenant.name,candidate,None)
+                if (receipt is not None and isinstance(candidate,str) and candidate.isprintable()
+                        and 1<=len(candidate)<=128 and candidate not in ('.','..')
+                        and not any(c in candidate for c in '/?#')):
+                    try:
+                        await in_database(deadline,self.storage.identify_receipt,receipt,tenant.name,candidate,None)
+                    except Exception:
+                        logger.error('Invalid Pix receipt identity could not be persisted')
                 raise
+            if receipt is None:
+                raise PixError()
             pix=to_pix(normalized,tenant.name)
             await in_database(deadline,self.storage.identify_receipt,receipt,tenant.name,pix.id,normalized.payload_hash)
             ticket=await self.wait_claim(self.storage.claim,deadline,tenant.name,pix.id,normalized.payload_hash)
@@ -210,9 +228,9 @@ class PixController:
                     await in_database(deadline,self.storage.complete_initial,initial,result)
                     initial=None
             for cycle in range(3):
-                base,cached,security,links=await in_database(deadline,self._base,pix,policy)
+                base,cached,security,links,clock=await in_database(deadline,self._base,pix,policy)
                 try:
-                    enriched=await Enricher(self.bank,self.reputation,policy).enrich(base,
+                    enriched=await Enricher(self.bank,self.reputation,policy,clock=clock).enrich(base,
                         source_check=SourceCheck.OWNED if initial else SourceCheck.COMPLETED,
                         deadline=deadline,cached=cached,security_cached=security,links=links,resume=progress,
                         on_initial=complete_initial)
@@ -233,12 +251,19 @@ class PixController:
             outcome=PixError(error.http_status,error.code)
         except HashConflict:
             outcome=PixError(409,'QIT002002')
+        except (OwnershipConflict,ReconciliationRequired):
+            if ticket is not None and not isinstance(ticket,Replay):
+                try:
+                    await in_database(total,self.storage.release_reservations,ticket,initial)
+                except Exception:
+                    logger.error('Conflicted Pix reservation could not be released')
+            outcome=PixError(409,'QIT002010')
         except DBAPIError as error:
             # Only the named tenant/ID uniqueness constraint can be a race winner.
             if (getattr(error.orig,'pgcode',None)=='23505' and
                     getattr(getattr(error.orig,'diag',None),'constraint_name',None)=='uq_pix_tenant_external_id'):
                 try:
-                    winner=await in_database(deadline,self.storage.claim,tenant.name,pix.id,normalized.payload_hash)
+                    winner=await in_database(deadline,self.storage.resolve_duplicate,tenant.name,pix.id,normalized.payload_hash)
                     if isinstance(winner,Replay):
                         await self.finish(receipt,tenant.name,200,'replay',total,key=winner.dto.public['key'],strict=True)
                         return 200,winner.dto.public

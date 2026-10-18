@@ -12,9 +12,12 @@ class PixError(QIException):
             'QIT002003': 'Invalid document check digits.',
             'QIT002004': 'Invalid date, time or timezone offset.',
             'QIT002005': 'Account opening follows the transaction.',
+            'QIT002010': 'Institution reconciliation required for account ownership or bank identity. Do not retry until repaired.',
             'QIT002009': 'Request body exceeds 65536 bytes.',
             'QIT000001': 'Invalid Pix JSON, structure, type or format.',
             'QIT002008': 'Reliable result unavailable. Retry the same ID and body.',
         }
-        super().__init__('Pix request error',code,status,descriptions[code],
-                         'Consulte o código do erro; em falha técnica, repita o mesmo ID e corpo.')
+        translation = ('É necessária reconciliação de titularidade ou vínculo bancário pela instituição antes de repetir.'
+                       if code == 'QIT002010' else
+                       'Consulte o código do erro; em falha técnica, repita o mesmo ID e corpo.')
+        super().__init__('Pix request error',code,status,descriptions[code],translation)

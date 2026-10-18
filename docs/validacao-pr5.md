@@ -70,7 +70,7 @@ a sentinela existente protege a stack antes da coleta. Não há SQLite ou reposi
 fake validando persistência. Providers adversariais são objetos explícitos de teste
 com os mesmos protocolos; a aplicação carrega adapters de fixtures normalizadas.
 
-## Resultado final local
+## Resultado inicial local — SHA 6acd2e7
 
 Em **18/10/2026**, build completa sem mounts de código na stack `pix-pr5-submit`:
 **413 testes passaram em 31,18 s**, sem skips/xfails: 366 anteriores e **47 novos**
@@ -100,13 +100,42 @@ Logs: `pr5-baseline.log`, `pr5-red.log`, `pr5-revalidation-red.log`,
 O SHA e os links de CI da revisão ficam na descrição da PR; resultados locais
 não substituem a revisão independente nem provam ausência de bugs.
 
+## Correções da revisão independente
+
+Os oito comentários e as quatro lacunas adicionais estão registrados em
+[CORRECOES-REVISAO-PR5.md](CORRECOES-REVISAO-PR5.md), com decisões e ressalvas de
+reprodução. Nenhuma pendência bloqueante foi transferida à etapa 6. A suíte
+`tests/integration/test_pix_api_review.py` acrescenta **23 casos**; o total passa
+a **436 testes**, mantendo os 413 anteriores. O harness agora permite preservar
+os tenants/políticas carregados no startup, e a autenticação recusada exige zero
+receipts anônimos no SQL.
+
+A rodada verifica 409 QIT002010 e liberação fenced de leases sem perder hash,
+flood anônimo sem DB, relógio do app adiantado/atrasado, 23505 PostgreSQL real com
+200/409/503, pools separados e saturação da Base, 400/422 com auditoria/DB falhos,
+reingestão no interleaving e escape Unicode nos logs. Há verificações diretas dos
+timeouts PostgreSQL em leitura/escrita, do Content-Length inválido no Resource
+e de dois tenants percorrendo create_app/HTTP. A guarda contra fonte realmente
+futura permanece; nenhuma mudança no motor numérico, migrations ou fontes.
+
+Resultado local final da revisão em **18/10/2026**: **436 passaram em 36,50 s**
+na stack `pix-pr5-review-submit`, build completa sem mounts de código; **23 casos
+da revisão passaram isolados em 6,28 s**. Sem skips/xfails; somente o warning
+original do declarative_base. Mesmos Python 3.11.17/PostgreSQL 16.15/Docker
+29.8.2/Compose 5.6.0 no macOS ARM64. **92 originais em 0,130 s**, **59 observações
+e 2.000 contextos** da Decision completa equivalentes. **101 arquivos Python**
+compilados em memória, 24 hashes, diff e migrations/schema preservados conferidos.
+Stacks próprias removidas; `pix-pr1` preservado. Logs fora do Git em
+`../tmp/pr6-review-{baseline,red,skew-red,winner-red,focused-final,submit,reference,original,syntax}.log`.
+O SHA corrigido e o CI ficam na descrição da PR e nas respostas individuais.
+
 ## Reprodução
 
 Na raiz deste Git, com Docker e Compose v2:
 
 ```bash
 docker compose -p pix-api-review -f compose.test.yml up --build --abort-on-container-exit --exit-code-from tests tests
-docker compose -p pix-api-review -f compose.test.yml run --rm --no-deps tests python -m pytest -q tests/integration/test_pix_api.py tests/unit/test_pix_http_configuration.py
+docker compose -p pix-api-review -f compose.test.yml run --rm --no-deps tests python -m pytest -q tests/integration/test_pix_api.py tests/integration/test_pix_api_review.py tests/unit/test_pix_http_configuration.py
 docker compose -p pix-api-review -f compose.test.yml run --rm --no-deps -v "$PWD/docs/contexto:/reference:ro" tests python tests/reference/verify_pix_reference.py --reference-dir /reference
 docker compose -p pix-api-review -f compose.test.yml run --rm --no-deps -v "$PWD/docs/contexto:/reference:ro" tests python -m unittest discover -s /reference -p 'test_*.py' -q
 docker compose -p pix-api-review -f compose.test.yml down -v --remove-orphans

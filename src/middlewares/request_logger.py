@@ -1,3 +1,4 @@
+import json
 import time
 
 from fastapi import FastAPI, Request
@@ -49,12 +50,14 @@ def register_request_logger_middleware(application: FastAPI) -> None:
         if request.url.query:
             requested_path = f"{requested_path}?{request.url.query}"
 
+        requested_path = json.dumps(requested_path,ensure_ascii=True)[1:-1]
+        response_path = json.dumps(request.url.path,ensure_ascii=True)[1:-1]
         started_at = time.perf_counter()
         logger.info(f"ENTROU {request.method} {requested_path}")
 
         response = await call_next(request)
 
         elapsed_ms = (time.perf_counter() - started_at) * 1000
-        logger.info(f"SAIU {response.status_code} {request.method} {request.url.path} - {elapsed_ms:.1f} ms")
+        logger.info(f"SAIU {response.status_code} {request.method} {response_path} - {elapsed_ms:.1f} ms")
 
         return response

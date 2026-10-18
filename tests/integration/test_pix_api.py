@@ -38,12 +38,13 @@ def controller(storage, bank=None, reputation=None):
 def api(storage):
     from app import create_app
     servers = []
-    def start(service=None):
+    def start(service=None, *, configured=False):
         app = create_app()
         app.state.pix_controller = service or controller(storage)
-        app.state.pix_tenants = (Tenant('demo', 'test_token', '00000000'), Tenant('other', 'other-token', '11111111'))
-        app.state.pix_policies = PolicyCatalog(((Policy().version, Policy()),),
-                                              (('demo', Policy().version), ('other', Policy().version)))
+        if not configured:
+            app.state.pix_tenants = (Tenant('demo', 'test_token', '00000000'), Tenant('other', 'other-token', '11111111'))
+            app.state.pix_policies = PolicyCatalog(((Policy().version, Policy()),),
+                                                  (('demo', Policy().version), ('other', Policy().version)))
         sock = socket(); sock.bind(('127.0.0.1', 0)); sock.listen(128)
         server = uvicorn.Server(uvicorn.Config(app, log_level='error', lifespan='off'))
         thread = Thread(target=server.run, kwargs={'sockets':[sock]}, daemon=True); thread.start()
@@ -144,7 +145,7 @@ def test_http_auth_and_unfinished_get(api,storage):
     for token in ('','bad'):
         r=post(url,p,token);assert r.status_code==403 and r.json()['code']=='QIT000002'
     with storage.read() as repo:
-        assert repo.session.execute(text('SELECT count(*) FROM request_receipt WHERE tenant_id IS NULL')).scalar()==2
+        assert repo.session.execute(text('SELECT count(*) FROM request_receipt WHERE tenant_id IS NULL')).scalar()==0
 
 
 def test_http_concurrent_same_id_commits_once_and_different_hash_is_409(api,storage):
@@ -567,6 +568,10 @@ def test_unreachable_postgresql_returns_503_and_does_not_invent_receipt(api,stor
             url=api(controller(PixStorage(sessionmaker(bind=engine))))
             r=post(url,payload());assert r.status_code==503 and r.json()['code']=='QIT002008'
             assert get(url,'unknown').status_code==503
+            invalid=payload();invalid['source_account']['owner']['document_number']='12345678900'
+            assert post(url,invalid).status_code==422
+            invalid['amount']=False
+            assert post(url,invalid).status_code==400
             assert post(url,payload(),'bad-token').status_code==403
         finally:engine.dispose()
     with storage.read() as repo:

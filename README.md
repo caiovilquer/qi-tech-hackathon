@@ -111,13 +111,15 @@ nome em `-p`. Migrations são exercitadas em bancos aleatórios adicionais,
 criados e removidos no servidor de testes (o usuário local de testes precisa
 poder criar bancos). A API não ganha endpoints administrativos para isso.
 
-Validação local da etapa 5 em **18/10/2026**: **413 testes passaram em
-31,18 s** com PostgreSQL **16.15** real e Python **3.11.17** no Docker: 366
-anteriores e **47 novos** (39 casos HTTP/PostgreSQL e 8 de configuração).
-Sem skips/xfails; um warning de depreciação do `declarative_base` original.
-Os novos testes incluem processos Uvicorn reais, crash/reinício, concorrência de
-origem/destino, falhas de SQL/commit e deadline, além do contrato HTTP.
-Ver [evidências e comandos da etapa 5](docs/validacao-pr5.md).
+Validação local da etapa 5 após revisão, em **18/10/2026**: **436 testes passaram
+em 36,50 s**, com PostgreSQL **16.15** real e Python **3.11.17** no Docker.
+São os 413 testes da implementação inicial e **23 casos da revisão**; estes
+passaram isolados em **6,28 s**. Sem skips/xfails; um warning de depreciação do
+`declarative_base` original. Os testes incluem HTTP, processos/crash, concorrência,
+fencing, falhas SQL/commit, clocks, autenticação e isolamento de pools/tenants.
+[Correções e decisões dos oito achados](docs/CORRECOES-REVISAO-PR5.md) e
+[evidências/TDD](docs/validacao-pr5.md). A referência permanece com **92 testes**,
+**59 observações e 2.000 contextos** equivalentes à Decision V3 completa.
 
 Histórico da etapa 4, validação local final em **18/10/2026**, no SHA `8f341d6`:
 **366 testes passaram em 8,08 s**, incluindo os 35 testes HTTP originais,
@@ -206,7 +208,9 @@ Usar o token/porta configurados se diferentes dos padrões. Novo Pix retorna 201
 repetir o POST devolve 200 com DTO idêntico, sem providers. Alterar qualquer campo
 relevante mantendo o ID dá 409. GET é pelo ID externo e retorna 404 enquanto houver
 apenas reserva. Falha técnica dá 503: repetir **o mesmo ID e corpo**, inclusive
-quando o commit pode ter sido concluído sem confirmação. Os únicos status de
+quando o commit pode ter sido concluído sem confirmação. Conflito de titularidade
+ou vínculo bancário retorna **409 QIT002010**: reconciliar os dados institucionais
+antes de repetir; o hash original permanece reservado. Os únicos status de
 risco são `approved`, `two_factor_required` e `rejected`.
 
 O corpo tem limite incremental de 64 KiB e dinheiro permanece em centavos desde
@@ -214,7 +218,10 @@ os bytes HTTP. Providers operam fora dos locks; o coordenador reconstrói contex
 sob locks de origem/destino e usa até três ciclos dentro dos 3 s totais. Consulta
 inicial durável não reinicia por troca de aparelho. Eventos de 2FA/execução são
 internos e nunca reescrevem a análise original nem cadastram dispositivo.
-[Detalhes, erros, fixtures e limites](docs/api-pix.md).
+[Detalhes, erros, fixtures e limites](docs/api-pix.md) e
+[correções da revisão](docs/CORRECOES-REVISAO-PR5.md).
+Autenticação recusada usa somente o logger, sem acesso ao banco. O pool limitado
+Pix é separado do pool original da Base API; a referência temporal é o PostgreSQL.
 
 ## Motor de decisão puro
 

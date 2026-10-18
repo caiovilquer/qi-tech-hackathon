@@ -18,7 +18,12 @@ class PixResource:
         receipt=None
         delegated=False
         try:
-            receipt=await service.receive(request.state.request_id,tenant.name,deadline)
+            try:
+                receipt=await service.receive(request.state.request_id,tenant.name,deadline)
+            except Exception:
+                # Still validate a bounded body: a known client error is not a
+                # transient financial outcome. Valid input requires a receipt.
+                logger.error('Pix receipt could not be persisted')
             length=request.headers.get('content-length')
             if length is not None:
                 if not length.isascii() or not length.isdigit():

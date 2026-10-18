@@ -32,15 +32,8 @@ def register_internal_token_middleware(application: FastAPI) -> None:
             credential = request.headers.get('INTERNAL-TOKEN')
             tenant = resolve_tenant(application.state.pix_tenants, credential)
             if tenant is None:
-                # Anonymous receipts contain no credential or body. Authentication
-                # semantics stay 403 even if storage itself is unavailable.
-                service = application.state.pix_controller
-                try:
-                    receipt = await service.receive(get_request_id(), None, request.state.pix_deadline)
-                    await service.finish(receipt,None,403,'QIT000002',request.state.pix_deadline)
-                except Exception:
-                    from utils.logger import get_logger
-                    get_logger(__name__).error('Anonymous Pix receipt could not be persisted')
+                # Authentication denial is logged by request_logger. Never let
+                # anonymous requests acquire a connection or write receipts.
                 return qi_exception_to_response(ForbiddenNotInternal())
             request.state.pix_tenant = tenant
             request.state.request_id = get_request_id()

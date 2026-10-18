@@ -1,6 +1,9 @@
 """One monotonic budget across async I/O and PostgreSQL worker threads."""
 import asyncio
 from contextvars import ContextVar
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from time import monotonic
 
 from sqlalchemy import event, text
 from starlette.concurrency import run_in_threadpool
@@ -8,6 +11,20 @@ from starlette.concurrency import run_in_threadpool
 from providers.budget import BudgetExceeded
 
 current_deadline = ContextVar('pix_deadline', default=None)
+
+
+@dataclass(frozen=True)
+class DatabaseClock:
+    """PostgreSQL UTC anchor advanced only by monotonic elapsed time.
+
+    Local wall-clock skew does not rewrite source times or initial coverage.
+    PostgreSQL remains authoritative for leases and the final decision instant.
+    """
+    anchor: datetime
+    started: float = field(default_factory=monotonic)
+
+    def __call__(self):
+        return self.anchor+timedelta(seconds=monotonic()-self.started)
 
 
 async def in_database(deadline, operation, *args, **kwargs):
