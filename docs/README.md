@@ -5,7 +5,13 @@ Os 24 arquivos de fonte em [contexto/](contexto/) foram preservados byte a byte,
 com os caminhos relativos entre eles. [fontes.md](fontes.md) registra os hashes.
 Caches, ambientes virtuais e temporários ficaram fora do Git.
 
-## Ordem de leitura para a PR 3
+## Estado atual
+
+As PRs 1, 2 e 3 foram aprovadas e mergeadas; `main` está em `1e233ee`.
+A PR 4 (`feat/pix-storage`) ainda não foi iniciada. Para revisar o que já
+existe, seguir os históricos abaixo, do mais recente ao mais antigo.
+
+## Histórico da PR 3
 
 1. [Prompt independente](REVISAO-PR3.md), [plano](../PLANO-IMPLEMENTACAO.md)
    e [README](../README.md).
@@ -16,7 +22,7 @@ Caches, ambientes virtuais e temporários ficaram fora do Git.
 3. Guia vigente V3, especialmente §§2, 4, 5 e 8.2; contrato oficial no PDF
    e demais fontes listadas abaixo.
 
-A PR 2 foi aprovada e mergeada. A PR 3 entrega enriquecimento verificável e
+A PR 3 foi aprovada e mergeada. Ela entrega enriquecimento verificável e
 adapters simulados, sem rotas Pix ou garantias transacionais de produção.
 
 ## Histórico da PR 2
