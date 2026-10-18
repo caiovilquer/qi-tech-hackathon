@@ -113,8 +113,8 @@ poder criar bancos). A API não ganha endpoints administrativos para isso.
 
 Execução local da etapa 4: **354 testes passaram** (83 anteriores HTTP/PostgreSQL,
 229 puros anteriores e 42 casos novos de storage/codec), incluindo os 35 testes HTTP originais.
-As correções da revisão independente acrescentaram 12 casos de storage e 1 unitário;
-o total após essa rodada é confirmado pelo CI do SHA de re-revisão e registrado em
+As correções da revisão independente acrescentaram 11 casos de storage e 1 unitário:
+**366 testes passaram** no CI do commit `308488e`, conforme
 [docs/CORRECOES-REVISAO-PR4.md](docs/CORRECOES-REVISAO-PR4.md). A comparação
 separada reproduziu **59 observações** e **2.000 contextos** com decisão completa
 igual à referência V3. O CI faz essa comparação montando as fontes somente

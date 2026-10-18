@@ -38,10 +38,14 @@ sem versionamento) estão documentados em storage-pix.md.
 
 Os testes foram escritos antes das correções, a partir dos achados. A máquina do
 revisor não executa a suíte PostgreSQL (sem Docker), e o Python disponível é 3.14,
-fora da versão fixada; por isso a evidência de execução desta rodada é o CI do
-novo SHA e a execução local de quem tem Docker, com os comandos abaixo. Antes de
-publicar a re-revisão, registrar aqui os números finais (total, novos casos e
-diferencial 59/2.000), sem estimá-los.
+fora da versão fixada; a evidência de execução desta rodada é o CI do commit de
+correção `308488ecaf062109b35708629f058c6c1f56a7bb`:
+[push](https://github.com/caiovilquer/qi-tech-hackathon/actions/runs/39113851445) e
+[PR](https://github.com/caiovilquer/qi-tech-hackathon/actions/runs/39113853998),
+ambos com **366 testes passando em 14,24 s** (354 anteriores, 11 novos de storage e
+1 unitário de seleção), 1 warning do declarative_base, PostgreSQL 16 real, e
+**59 observações e 2.000 contextos** iguais à Decision V3 completa. Quem tem Docker
+reproduz com os comandos abaixo; o HEAD final da PR está na descrição.
 
 Localmente, sem PostgreSQL, foram conferidos: compilação de `src`, `tests` e
 `migrations`; importação do módulo de storage; os dois testes de codec; o

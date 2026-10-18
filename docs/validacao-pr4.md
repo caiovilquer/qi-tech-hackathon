@@ -115,7 +115,7 @@ substituir PostgreSQL por SQLite ou mock de repository para validar esta etapa.
 ## Correções da revisão independente
 
 A revisão do SHA `7fead97` (relatório em [CORRECOES-REVISAO-PR4.md](CORRECOES-REVISAO-PR4.md))
-gerou 12 testes de storage e 1 unitário da etapa 3, escritos antes das correções:
+gerou 11 testes de storage e 1 unitário da etapa 3, escritos antes das correções:
 
 - Reproduzem falhas do SHA revisado: `test_linked_bank_execution_is_one_fact_through_enricher_and_writer`
   e `LinkedExecutionDedupTests` (fato bancário duplicado pela reconciliação e recusado
@@ -129,6 +129,8 @@ gerou 12 testes de storage e 1 unitário da etapa 3, escritos antes das correç�
   `test_raw_body_is_optional_bounded_and_bound_to_the_canonical_hash`,
   `test_receipt_is_finalized_once` e `test_initial_completion_conflict_leaves_reservation_with_its_owner`.
 
-A execução PostgreSQL desta rodada não foi possível na máquina do revisor; os
-números finais devem ser preenchidos a partir do CI do novo SHA e de uma execução
-local com Docker, sem estimativa.
+A execução PostgreSQL desta rodada não foi possível na máquina do revisor. O CI do
+commit `308488e` (push e PR) registrou **366 testes passando em 14,24 s**, sem
+skips/xfails e com o mesmo warning do declarative_base, além de **59 observações e
+2.000 contextos** idênticos à referência V3. Links e detalhes em
+[CORRECOES-REVISAO-PR4.md](CORRECOES-REVISAO-PR4.md).
