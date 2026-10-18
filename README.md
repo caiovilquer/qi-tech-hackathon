@@ -1,18 +1,19 @@
 # Antifraude Pix
 
-Implementação em etapas sobre a Base API do Bootcamp QI Tech. **Etapa atual:
-providers simulados e enriquecimento (PR 3), em revisão.** As PRs 1 e 2
-foram aprovadas e mergeadas. A API de exemplo funciona com PostgreSQL real;
-os endpoints Pix ainda não estão disponíveis.
+Implementação em etapas sobre a Base API do Bootcamp QI Tech. **Estado atual:
+PRs 1, 2 e 3 aprovadas e mergeadas; a próxima etapa é a PR 4
+(`feat/pix-storage`), ainda não iniciada.** A API de exemplo funciona com
+PostgreSQL real; os endpoints Pix ainda não estão disponíveis.
 O [plano de implementação](PLANO-IMPLEMENTACAO.md) define as próximas PRs e os
 critérios de aceitação. Cada etapa depende de revisão e aprovação da anterior.
 
-Para revisão independente, começar pelo [índice de documentos](docs/README.md)
-e pelo [prompt da PR 3](docs/REVISAO-PR3.md). Todas as fontes fornecidas estão
+Para revisão independente do que já existe, começar pelo
+[índice de documentos](docs/README.md), que aponta prompt, correções e
+evidências de cada PR. Todas as fontes fornecidas estão
 versionadas em `docs/contexto/`, inclusive guia vigente, enunciado, ZIP,
 referência executável e histórico identificado.
 
-## O que esta etapa entrega
+## O que já foi entregue
 
 - Base fornecida importada integralmente, conferida contra o ZIP, em commit
   separado `602d71c`. [Inventário e hashes das fontes](docs/fontes.md).
@@ -38,7 +39,7 @@ reconciliação de execuções bancárias sem fabricar solicitações da API.
 e [correções da re-revisão](docs/CORRECOES-REREVISAO-PR3.md).
 
 Não há endpoints/análises persistidas Pix, idempotência Pix ou integração
-externa real nesta etapa. Os tipos de eventos são entradas do motor; ingestão e
+externa real até aqui. Os tipos de eventos são entradas do motor; ingestão e
 persistência bancária pertencem às próximas PRs. As rotas de exemplo não
 fazem parte do contrato Pix. O health check mede liveness da API e não
 confirma disponibilidade do banco.
@@ -123,6 +124,14 @@ Para um ambiente Python local opcional:
 python3.11 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt -c requirements.lock
 ```
+
+O venv local exige Python 3.11, a mesma série do Docker/CI. Com Python 3.14,
+`psycopg2-binary` 2.9.10 não tem wheel e a instalação a partir do lock falha;
+além disso, o teste arquivado da referência para `24:00:00` falha porque o
+`fromisoformat` dessa versão aceita o horário. O código de produção rejeita
+esse horário e o teste portado passa; são efeitos do interpretador, não
+regressões. Sem o stack completo, os testes puros que importam a aplicação em
+subprocesso também falham por falta de `fastapi`.
 
 A suíte exige `APP_ENV=testing`, PostgreSQL com nome `pix_test_` e alvo HTTP
 explícito em `SERVER_LOCALHOST` e `API_PORT`. Antes de coletar testes, insere

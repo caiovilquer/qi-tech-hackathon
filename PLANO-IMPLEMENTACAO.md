@@ -3,8 +3,9 @@
 Referência vigente: guia V3 de 17/10/2026, política `pix-experimental-v3`.
 Estado: PR 1 aprovada e mergeada em `c35005af40590fe9b60023ab29ac62d85bb9ff0f`.
 PR 2 aprovada e mergeada em `1971e51fad28c38ad7e198db78f9ab73a1837b14`.
-PR 3 implementada em `feat/pix-providers`, para revisão independente. As próximas
-etapas aguardam aprovação explícita. Ainda não há endpoints Pix ou persistência de análises.
+PR 3 aprovada e mergeada em `1e233ee4e5a02b3d7e7818eff1b1a27089690978`.
+Próxima etapa: PR 4 (`feat/pix-storage`), não iniciada; começa somente após
+aprovação explícita. Ainda não há endpoints Pix ou persistência de análises.
 
 ## Fontes e precedência
 
@@ -204,4 +205,6 @@ registrar corrigido/improcedente com evidência/pendente, corrigir na mesma PR,
 retestar e preparar re-revisão com novo SHA. Responder diretamente a cada
 comentário/thread na PR com o que foi feito, localização, SHA e evidência; para
 achados improcedentes, justificar com evidência. O relatório local não substitui
-as respostas no GitHub. Não resolver threads ou fazer merge automaticamente.
+as respostas no GitHub. A aprovação de cada rodada deve ficar registrada na
+própria PR como review aprovada sobre o SHA final; aprovação verbal ou fora do
+GitHub não encerra o gate. Não resolver threads ou fazer merge automaticamente.
