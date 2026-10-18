@@ -1,4 +1,5 @@
 import json
+import math
 import time
 from abc import ABCMeta
 
@@ -31,10 +32,12 @@ class RestConnector(metaclass=ABCMeta):
         de que lado está o problema.
     """
 
-    def __init__(self, class_name: str, base_url: str, timeout: int, internal_token: str) -> None:
+    def __init__(self, class_name: str, base_url: str, timeout: float, internal_token: str) -> None:
+        if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("Connector timeout must be positive finite seconds")
         self.logger = get_logger(class_name)
         self.base_url = base_url
-        self.timeout = timeout
+        self.timeout = float(timeout)
         self.internal_token = internal_token
 
     def send(self, endpoint: str, method: str, payload: dict = None, headers: dict = None):

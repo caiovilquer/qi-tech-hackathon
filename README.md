@@ -1,14 +1,14 @@
 # Antifraude Pix
 
 Implementação em etapas sobre a Base API do Bootcamp QI Tech. **Etapa atual:
-contrato e motor puro versionado (PR 2), em revisão.** A PR 1 foi aprovada e
-mergeada. A API de exemplo funciona com PostgreSQL real; os endpoints Pix
-ainda não estão disponíveis.
+providers simulados e enriquecimento (PR 3), em revisão.** As PRs 1 e 2
+foram aprovadas e mergeadas. A API de exemplo funciona com PostgreSQL real;
+os endpoints Pix ainda não estão disponíveis.
 O [plano de implementação](PLANO-IMPLEMENTACAO.md) define as próximas PRs e os
 critérios de aceitação. Cada etapa depende de revisão e aprovação da anterior.
 
 Para revisão independente, começar pelo [índice de documentos](docs/README.md)
-e pelo [prompt da PR 2](docs/REVISAO-PR2.md). Todas as fontes fornecidas estão
+e pelo [prompt da PR 3](docs/REVISAO-PR3.md). Todas as fontes fornecidas estão
 versionadas em `docs/contexto/`, inclusive guia vigente, enunciado, ZIP,
 referência executável e histórico identificado.
 
@@ -31,10 +31,17 @@ A PR 2 acrescenta parsing JSON exato, normalização/hash do contrato oficial,
 e resposta pública separada do snapshot de auditoria. Ver
 [contrato e motor](docs/motor-pix.md) e [evidências](docs/validacao-pr2.md).
 
-Não há endpoints/análises persistidas Pix, idempotência Pix ou adapters de
-providers nesta etapa. Os tipos de eventos são entradas do motor; ingestão e
+A PR 3 acrescenta contratos e adapters simulados em `src/providers/`,
+validação de escopo/versão/validade, DICT condicional, orçamento de chamadas e
+reconciliação de execuções bancárias sem fabricar solicitações da API.
+[Interfaces e limites](docs/providers-pix.md), [evidências/TDD](docs/validacao-pr3.md)
+e [correções da re-revisão](docs/CORRECOES-REREVISAO-PR3.md).
+
+Não há endpoints/análises persistidas Pix, idempotência Pix ou integração
+externa real nesta etapa. Os tipos de eventos são entradas do motor; ingestão e
 persistência bancária pertencem às próximas PRs. As rotas de exemplo não
-fazem parte do contrato Pix. O health check mede liveness da API e não confirma disponibilidade do banco.
+fazem parte do contrato Pix. O health check mede liveness da API e não
+confirma disponibilidade do banco.
 
 ## Como rodar
 
@@ -103,12 +110,12 @@ nome em `-p`. Migrations são exercitadas em bancos aleatórios adicionais,
 criados e removidos no servidor de testes (o usuário local de testes precisa
 poder criar bancos). A API não ganha endpoints administrativos para isso.
 
-Execução local desta etapa: **214 testes passaram** (83 da etapa anterior +
-131 testes puros), incluindo os 35 testes HTTP originais. A comparação
+Execução local após revisão: **312 testes passaram** (83 HTTP/PostgreSQL da base +
+229 testes puros), incluindo os 35 testes HTTP originais. A comparação
 separada reproduziu **59 observações** e **2.000 contextos** com decisão completa
 igual à referência V3. O CI faz essa comparação montando as fontes somente
 para leitura no container de testes. Esses números não comprovam HTTP/Pix,
-concorrência Pix ou eficácia. Ver [evidências da PR 2](docs/validacao-pr2.md).
+concorrência Pix ou eficácia. Ver [evidências da PR 3](docs/validacao-pr3.md).
 
 Para um ambiente Python local opcional:
 
@@ -182,6 +189,25 @@ privada retém o IP inválido para reproduzir o hash.
 [Documentação do motor](docs/motor-pix.md): interfaces, configuração,
 auditoria, limites e mapa dos critérios. O `Simulator` existe somente nas
 fontes e no harness dos testes; não é repository da aplicação.
+
+## Providers e enriquecimento
+
+`Enricher.enrich` é uma biblioteca assíncrona que recebe Context, Policy, deadline
+e estado comprovado da checagem inicial (`OWNED` ou `COMPLETED`). Sempre busca
+segurança bancária atual e pagamentos confirmados; consulta DICT do destinatário
+quando `C_pre < 80`, aproveitando evidência vigente inclusive com C_pre alto.
+O resultado conserva cobertura e proveniência na auditoria privada.
+
+Essa pré-condição ainda não é garantida por PostgreSQL: leases/fencing e
+persistência do resultado inicial/cache pertencem à PR 4. Os adapters atuais
+são fixtures explícitas, determinísticas e sem rede; não simulam integração
+com o DICT real. Não há cache global ou registro de dispositivo por observação.
+
+O orçamento é monotônico: 250 ms por tentativa, no máximo um retry técnico e
+3 s totais fornecidos pelo chamador. Adapters async devem cooperar com
+cancelamento e não bloquear o event loop. O connector síncrono da base agora
+aceita segundos fracionários positivos, sem arredondar `.25` para zero; timeout
+de socket não é deadline total. [Contrato e exemplo executável](docs/providers-pix.md).
 
 ## Desenvolvimento e limites
 

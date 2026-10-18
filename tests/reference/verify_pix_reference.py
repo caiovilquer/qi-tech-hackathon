@@ -28,8 +28,14 @@ def verify(reference_dir):
 
     def convert(value):
         if is_dataclass(value):
-            return getattr(reference, type(value).__name__)(**{
-                field.name: convert(getattr(value, field.name)) for field in fields(value)})
+            target = getattr(reference, type(value).__name__)
+            expected_fields = {field.name for field in fields(target)}
+            for field in fields(value):
+                if field.name not in expected_fields:
+                    assert getattr(value, field.name) == (), 'V3 differential requires empty new provider inputs'
+            return target(**{
+                field.name: convert(getattr(value, field.name)) for field in fields(value)
+                if field.name in expected_fields})
         if isinstance(value, tuple):
             return tuple(convert(item) for item in value)
         return value

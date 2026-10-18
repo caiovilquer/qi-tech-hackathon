@@ -5,7 +5,21 @@ Os 24 arquivos de fonte em [contexto/](contexto/) foram preservados byte a byte,
 com os caminhos relativos entre eles. [fontes.md](fontes.md) registra os hashes.
 Caches, ambientes virtuais e temporários ficaram fora do Git.
 
-## Ordem de leitura para a PR 2
+## Ordem de leitura para a PR 3
+
+1. [Prompt independente](REVISAO-PR3.md), [plano](../PLANO-IMPLEMENTACAO.md)
+   e [README](../README.md).
+2. [Correções da re-revisão](CORRECOES-REREVISAO-PR3.md),
+   [primeira rodada](CORRECOES-REVISAO-PR3.md),
+   [providers, escopo, histórico e orçamento](providers-pix.md) e
+   [evidências/TDD](validacao-pr3.md).
+3. Guia vigente V3, especialmente §§2, 4, 5 e 8.2; contrato oficial no PDF
+   e demais fontes listadas abaixo.
+
+A PR 2 foi aprovada e mergeada. A PR 3 entrega enriquecimento verificável e
+adapters simulados, sem rotas Pix ou garantias transacionais de produção.
+
+## Histórico da PR 2
 
 1. [Correções da revisão](CORRECOES-REVISAO-PR2.md),
    [prompt de revisão independente](REVISAO-PR2.md),

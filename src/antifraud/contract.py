@@ -263,6 +263,8 @@ def normalize_payload(payload: dict[str, Any]) -> NormalizedPayload:
         )
 
     source = canonical["source"]
+    if not source["device_id"].strip():
+        raise ValidationError(400, "QIT000001", "Dispositivo vazio apos strip.", "source.device_id")
     source["channel"] = source["channel"].strip().lower()
     if not source["channel"]:
         raise ValidationError(400, "QIT000001", "Canal vazio apos strip.", "source.channel")

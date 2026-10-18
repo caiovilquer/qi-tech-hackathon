@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from fractions import Fraction
 from zoneinfo import ZoneInfo
-from .context import Context, Pix, HistoricalAnalysis, ExecutionEvent, REJECTED, TWO_FA, supported_time
+from .context import Context, Pix, HistoricalAnalysis, ExecutionEvent, BankPayment, REJECTED, TWO_FA, supported_time
 from .policy import Policy
 
 TZ = ZoneInfo("America/Sao_Paulo")
@@ -56,9 +56,9 @@ class Features:
     context: Context
     history: tuple[HistoricalAnalysis, ...]
     mine: tuple[HistoricalAnalysis, ...]
-    mature: tuple[HistoricalAnalysis, ...]
-    paid_payee: tuple[HistoricalAnalysis, ...]
-    mature_payee: tuple[HistoricalAnalysis, ...]
+    mature: tuple[HistoricalAnalysis | BankPayment, ...]
+    paid_payee: tuple[HistoricalAnalysis | BankPayment, ...]
+    mature_payee: tuple[HistoricalAnalysis | BankPayment, ...]
     general: bool
     payee_profile: bool
     established: bool
@@ -73,6 +73,7 @@ class Features:
     count: int
     receipt_count: int
     sec_valid: bool
+    bank_payments: tuple[BankPayment, ...]
 
     @property
     def p(self):
@@ -144,12 +145,16 @@ def build_features(c: Context, policy: Policy) -> Features:
                and (h.pix.payer, h.pix.id) != (p.payer, p.id)]
     mine = [h for h in history if h.pix.payer == p.payer]
     executed = [h for h in mine if effective(h, c)]
+    imported = [h for h in c.bank_payments if h.pix.payer == p.payer
+                and h.pix.id != p.id and t-timedelta(days=policy.history_days) < h.pix.transaction_at <= t
+                and h.execution.occurred_at <= now and h.execution.available_at <= now]
     maturity = t - timedelta(hours=policy.maturity_hours)
     mature = [h for h in executed if h.pix.transaction_at <= maturity
               and latest_execution(h, c).occurred_at <= maturity]
+    mature.extend(h for h in imported if h.pix.transaction_at <= maturity and h.execution.occurred_at <= maturity)
     general = (len(mature) >= policy.general_min_payments and
                len({h.pix.transaction_at.astimezone(TZ).date() for h in mature}) >= policy.general_min_days)
-    paid_payee = [h for h in executed if h.pix.destination == p.destination]
+    paid_payee = [h for h in executed + imported if h.pix.destination == p.destination]
     mature_payee = [h for h in mature if h.pix.destination == p.destination]
     payee_profile = len(mature_payee) >= policy.payee_min_payments
     established = bool(mature_payee)
@@ -171,4 +176,4 @@ def build_features(c: Context, policy: Policy) -> Features:
     return Features(c, tuple(history), tuple(mine), tuple(mature), tuple(paid_payee),
                     tuple(mature_payee), general, payee_profile, established, device,
                     trusted, age, qualifies, tuple(day), attempts_sum, tuple(exposed),
-                    ns, count, receipt_count, sec_valid)
+                    ns, count, receipt_count, sec_valid, tuple(imported))

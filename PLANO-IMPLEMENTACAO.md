@@ -2,8 +2,9 @@
 
 Referência vigente: guia V3 de 17/10/2026, política `pix-experimental-v3`.
 Estado: PR 1 aprovada e mergeada em `c35005af40590fe9b60023ab29ac62d85bb9ff0f`.
-PR 2 implementada em `feat/pix-engine`, para revisão independente. As próximas etapas
-aguardam aprovação explícita. Ainda não há endpoints Pix ou persistência de análises.
+PR 2 aprovada e mergeada em `1971e51fad28c38ad7e198db78f9ab73a1837b14`.
+PR 3 implementada em `feat/pix-providers`, para revisão independente. As próximas
+etapas aguardam aprovação explícita. Ainda não há endpoints Pix ou persistência de análises.
 
 ## Fontes e precedência
 
@@ -103,9 +104,13 @@ perder precisão antes da validação; divergência entre score preliminar/final
 
 **Dependência:** PR 2 aprovada. **Escopo:** contratos BankContextProvider e
 ReputationProvider, adapters determinísticos com fixtures explícitas e
-validação; histórico importado com identidade bancária estável; seleção
+validação; histórico importado com identidade bancária estável e separado de
+análises/receipts da API; seleção
 condicional DICT e ordenação de versões em funções testáveis. Sem rede real
-ou serviços novos. Adapters reais devem usar os mesmos contratos quando houver
+ou serviços novos. Contratos assíncronos permitem cancelamento cooperativo;
+I/O síncrono do banco continua destinado ao threadpool na futura integração.
+`SourceCheck.OWNED/COMPLETED` é uma pré-condição do chamador, sem reserva em
+memória fingindo durabilidade. Adapters reais devem usar os mesmos contratos quando houver
 integração autorizada, sem fingir integração externa funcional.
 
 **Aceitação:** ausência = not_covered; timeout = unavailable; expiração = stale;
@@ -117,6 +122,10 @@ nenhum 2FA ou observação registra dispositivo. Contrato suporta deadline de
 **Testes:** contratos compartilhados dos adapters; fixture ausente/expirada,
 sujeito errado, versões conflitantes, cancelamento/revogação, evidência adversa
 com C_pre alto; histórico futuro/tardio/maduro e reconciliação sem duplicação.
+**Entrega e evidências:** [providers](docs/providers-pix.md),
+[validação](docs/validacao-pr3.md), [prompt da PR 3](docs/REVISAO-PR3.md) e
+[correções da revisão](docs/CORRECOES-REVISAO-PR3.md) e
+[re-revisão](docs/CORRECOES-REREVISAO-PR3.md).
 **Riscos:** indisponibilidade tratada como limpeza; confiança fora de escopo;
 timeout de socket confundido com deadline total.
 
