@@ -111,3 +111,24 @@ Não usar ambiente de aplicação para executar testes/reset. O guard existente
 confere APP_ENV=testing, nome pix_test_ e sentinela HTTP/banco antes da coleta.
 Os testes de storage são síncronos e usam sessões concorrentes reais; não
 substituir PostgreSQL por SQLite ou mock de repository para validar esta etapa.
+
+## Correções da revisão independente
+
+A revisão do SHA `7fead97` (relatório em [CORRECOES-REVISAO-PR4.md](CORRECOES-REVISAO-PR4.md))
+gerou 12 testes de storage e 1 unitário da etapa 3, escritos antes das correções:
+
+- Reproduzem falhas do SHA revisado: `test_linked_bank_execution_is_one_fact_through_enricher_and_writer`
+  e `LinkedExecutionDedupTests` (fato bancário duplicado pela reconciliação e recusado
+  pelo writer), `test_writer_distinguishes_unpersisted_executions_and_clock_bounds`
+  (mensagens novas), `test_claim_while_owner_finalizes_is_busy_and_hash_conflict_does_not_wait`
+  (55P03 em vez de Busy e 409 adiado), `test_challenge_binding_requires_key_and_fingerprint_and_is_exclusive`
+  (`key=None` aceito), `test_codec_reports_malformed_stored_content_as_value_error`,
+  `test_destination_history_is_limited_to_the_fan_in_window` e
+  `test_read_transactions_are_bounded_and_read_committed`.
+- Documentam comportamento já correto, começando verdes: `test_known_expired_security_is_refused_by_writer`,
+  `test_raw_body_is_optional_bounded_and_bound_to_the_canonical_hash`,
+  `test_receipt_is_finalized_once` e `test_initial_completion_conflict_leaves_reservation_with_its_owner`.
+
+A execução PostgreSQL desta rodada não foi possível na máquina do revisor; os
+números finais devem ser preenchidos a partir do CI do novo SHA e de uma execução
+local com Docker, sem estimativa.

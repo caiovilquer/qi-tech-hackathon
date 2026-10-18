@@ -10,7 +10,7 @@ from providers.contracts import account, ProviderIdentity
 
 
 class Busy(RuntimeError):
-    """Another live owner exists; caller may wait within its existing deadline."""
+    """A live owner holds or is finalizing the reservation; retry within the existing deadline."""
 
 class LostClaim(RuntimeError):
     """Lease expired, ownership replaced or initial check not completed."""
@@ -37,6 +37,7 @@ class ClaimTicket:
     payload_hash: str
     owner: UUID
     fence: int
+    lease_until: datetime | None=None  # PostgreSQL clock at reservation; the row stays the authority
 
 @dataclass(frozen=True)
 class InitialTicket:
@@ -44,6 +45,7 @@ class InitialTicket:
     payer: AccountKey
     owner: UUID
     fence: int
+    lease_until: datetime | None=None
 
 @dataclass(frozen=True)
 class Replay:

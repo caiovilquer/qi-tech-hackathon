@@ -28,14 +28,23 @@ def _encode(value):
 def _decode(value):
     if type(value) is dict:
         if set(value)=={'datetime'}:
-            result=datetime.fromisoformat(value['datetime']);domain.aware(result);return result
+            try:
+                result=datetime.fromisoformat(value['datetime'])
+            except (TypeError,ValueError) as error:
+                raise ValueError('Invalid storage datetime') from error
+            domain.aware(result)
+            return result
         if set(value)=={'tuple'} and type(value['tuple']) is list:
             return tuple(_decode(v) for v in value['tuple'])
         if set(value)=={'type','data'} and value['type'] in TYPES:
             kind=TYPES[value['type']]
-            if set(value['data'])!={f.name for f in fields(kind)}:
+            if type(value['data']) is not dict or set(value['data'])!={f.name for f in fields(kind)}:
                 raise ValueError('Invalid storage fields')
-            return kind(**{k:_decode(v) for k,v in value['data'].items()})
+            try:
+                # Whitelisted constructors validate their own domain invariants.
+                return kind(**{k:_decode(v) for k,v in value['data'].items()})
+            except (TypeError,AttributeError,OverflowError) as error:
+                raise ValueError(f'Invalid storage content for {kind.__name__}') from error
         raise ValueError('Unknown storage type/tag')
     if value is None or type(value) in (str,int,bool):
         return value

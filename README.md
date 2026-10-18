@@ -112,7 +112,10 @@ criados e removidos no servidor de testes (o usuário local de testes precisa
 poder criar bancos). A API não ganha endpoints administrativos para isso.
 
 Execução local da etapa 4: **354 testes passaram** (83 anteriores HTTP/PostgreSQL,
-229 puros anteriores e 42 casos novos de storage/codec), incluindo os 35 testes HTTP originais. A comparação
+229 puros anteriores e 42 casos novos de storage/codec), incluindo os 35 testes HTTP originais.
+As correções da revisão independente acrescentaram 12 casos de storage e 1 unitário;
+o total após essa rodada é confirmado pelo CI do SHA de re-revisão e registrado em
+[docs/CORRECOES-REVISAO-PR4.md](docs/CORRECOES-REVISAO-PR4.md). A comparação
 separada reproduziu **59 observações** e **2.000 contextos** com decisão completa
 igual à referência V3. O CI faz essa comparação montando as fontes somente
 para leitura no container de testes. A etapa 4 testa concorrência dos componentes internos, não do fluxo HTTP Pix
@@ -209,9 +212,14 @@ locks advisory de origem/destino são ordenados pelos IDs numéricos efetivos.
 GET/replay internos devolvem exatamente o DTO persistido; eventos não reescrevem
 análise, autenticação não registra device e execução não muda decisão antifraude.
 
+O coordenador futuro persiste fatos externos (cache, vínculos e execuções
+bancárias vinculadas) em transações curtas e, sob locks, grava com `decision_at`
+capturado por `work.now()`; o writer recusa contexto pré-lock, fato não
+persistido e segurança vencida com erros distintos.
 [Contrato, protocolo e limites](docs/storage-pix.md),
 [testes e TDD](docs/validacao-pr4.md),
-[prompt independente](docs/REVISAO-PR4.md).
+[prompt independente](docs/REVISAO-PR4.md),
+[correções da revisão](docs/CORRECOES-REVISAO-PR4.md).
 “Etapa 4” corresponde ao plano, não à PR #4 de docs já mergeada.
 Sem rotas Pix nesta etapa; o serviço interno exige o chamador autorizado.
 

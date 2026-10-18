@@ -1,4 +1,5 @@
 """Internal transaction coordinator. No routes, provider I/O or hidden repo commits."""
+from collections import Counter
 from contextlib import contextmanager
 from dataclasses import asdict
 from datetime import timedelta, timezone
@@ -8,6 +9,7 @@ import re
 
 from sqlalchemy import select, func, and_
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import DBAPIError
 
 from models import pix as m
 from repositories.pix_repository import PixRepository, scope, initial_key
@@ -20,6 +22,9 @@ from antifraud.engine import evaluate
 from providers.contracts import ReputationRecord, account, ProviderIdentity
 from utils.pix_storage_codec import pack, digest, fingerprint
 
+LEASE=timedelta(seconds=10)
+LOCK_NOT_AVAILABLE='55P03'  # PostgreSQL lock_timeout
+
 
 def identity(tenant,external=None,hash_=None):
     if not isinstance(tenant,str) or re.fullmatch(r'[A-Za-z0-9_-]{1,64}',tenant) is None:
@@ -30,15 +35,61 @@ def identity(tenant,external=None,hash_=None):
         raise ValueError('Invalid canonical hash')
 
 
+def lock_timeout(error):
+    return isinstance(error,DBAPIError) and getattr(error.orig,'pgcode',None)==LOCK_NOT_AVAILABLE
+
+
+def binding(tenant,provider,external_id,fingerprint_,key=None,*,require_key=False):
+    """Validate a bank binding at the boundary. Every rejection is QIT002007."""
+    try:
+        identity(tenant,external_id)
+        ProviderIdentity(provider,'v1')
+        if not isinstance(fingerprint_,str) or re.fullmatch(r'[a-f0-9]{64}',fingerprint_) is None:
+            raise ValueError('Invalid financial fingerprint')
+        if key is None and require_key:
+            raise ValueError('Analysis key is required for a bank binding')
+        if key is not None and not isinstance(key,str):
+            raise ValueError('Analysis key must be a UUID string')
+        return str(UUID(key)) if key is not None else None
+    except (TypeError,ValueError,AttributeError) as error:
+        raise InvalidEvent(str(error)) from error
+
+
+def bank_reference(value,label):
+    if not isinstance(value,str) or not value.strip() or not value.isprintable() or len(value)>128:
+        raise InvalidEvent(f'Explicit {label} required')
+    return value
+
+
 class AnalysisWork:
     def __init__(self,repository,ticket,pix):
         self.repository,self.ticket,self.pix=repository,ticket,pix
         self.locked_at=repository.now()
 
+    def now(self):
+        """PostgreSQL UTC clock under the held locks; capture decision_at with it."""
+        return self.repository.now()
+
     def context(self,pix,at,policy):
         if pix!=self.pix:
             raise ValueError('Locked operation does not match context')
         return self.repository.context(pix,at,policy)
+
+    @staticmethod
+    def same_local_facts(context,current):
+        """The decision must use exactly the persisted local facts known at decision_at.
+
+        Linked bank executions are local facts once ingested; the coordinator
+        persists them before the final transaction instead of carrying a second,
+        unverifiable copy of the same execution in the Context.
+        """
+        if Counter(context.history)!=Counter(current.history) or Counter(context.auth_events)!=Counter(current.auth_events):
+            raise ValueError('Local history/auth events changed; rebuild context under the held locks')
+        if Counter(context.execution_events)==Counter(current.execution_events):
+            return
+        if set(context.execution_events)-set(current.execution_events):
+            raise ValueError('Execution events are not persisted locally; ingest linked bank executions before the final transaction')
+        raise ValueError('Local execution events changed; rebuild context under the held locks')
 
     def complete(self,normalized,context,policy,*,receipt_id=None,raw_body=None):
         r,t=self.repository,self.ticket
@@ -49,11 +100,11 @@ class AnalysisWork:
         if r.initial(self.pix.payer) is None:
             raise LostClaim('Source initial check is not durably completed')
         now=r.now()
-        if not self.locked_at<=context.decision_at<=now:
-            raise ValueError('Decision must be captured after account locks, never in the future')
-        current=r.context(self.pix,context.decision_at,policy)
-        if (context.history,context.execution_events,context.auth_events)!=(current.history,current.execution_events,current.auth_events):
-            raise ValueError('Local history/events changed; rebuild context under the held locks')
+        if context.decision_at<self.locked_at:
+            raise ValueError('decision_at precedes the account locks; capture it with work.now() after locking')
+        if context.decision_at>now:
+            raise ValueError('decision_at is ahead of the PostgreSQL clock; capture it with work.now()')
+        self.same_local_facts(context,r.context(self.pix,context.decision_at,policy))
         if context.security is not None and not context.security.valid(context.decision_at):
             raise ValueError('Known expired bank context must be refreshed before persistence')
         if raw_body is not None:
@@ -98,17 +149,26 @@ class PixStorage:
     def __init__(self,sessions):
         self.sessions=sessions
 
-    @contextmanager
-    def write(self,*,lock_timeout_ms=1000):
+    @staticmethod
+    def _configure(session,lock_timeout_ms):
+        # Always override a server default of SERIALIZABLE/REPEATABLE READ.
+        session.connection(execution_options={'isolation_level':'READ COMMITTED'})
+        session.execute(select(func.set_config('search_path','public',True)))
+        session.execute(select(func.set_config('lock_timeout',f'{lock_timeout_ms}ms',True)))
+        session.execute(select(func.set_config('statement_timeout','3000ms',True)))
+
+    @staticmethod
+    def _timeout(lock_timeout_ms):
         if type(lock_timeout_ms) is not int or not 1<=lock_timeout_ms<=1000:
             raise ValueError('Lock timeout must be 1..1000 milliseconds')
+        return lock_timeout_ms
+
+    @contextmanager
+    def write(self,*,lock_timeout_ms=1000):
+        timeout=self._timeout(lock_timeout_ms)
         with self.sessions() as session:
-            # Always override a server default of SERIALIZABLE/REPEATABLE READ.
-            session.connection(execution_options={'isolation_level':'READ COMMITTED'})
             try:
-                session.execute(select(func.set_config('search_path','public',True)))
-                session.execute(select(func.set_config('lock_timeout',f'{lock_timeout_ms}ms',True)))
-                session.execute(select(func.set_config('statement_timeout','3000ms',True)))
+                self._configure(session,timeout)
                 yield PixRepository(SimpleNamespace(db_session=session))
                 session.flush()
                 session.commit()  # Failures, including commit failures, propagate after rollback.
@@ -119,17 +179,37 @@ class PixStorage:
     @contextmanager
     def read(self):
         with self.sessions() as session:
-            session.connection(execution_options={'isolation_level':'READ COMMITTED'})
-            session.execute(select(func.set_config('search_path','public',True)))
+            self._configure(session,1000)
             yield PixRepository(SimpleNamespace(db_session=session))
             # close() rolls back a read transaction; no commit and no detached ORM state.
 
-    def claim(self,tenant,external_id,payload_hash):
+    @contextmanager
+    def coordination(self,label,*,lock_timeout_ms=1000):
+        """Short reservation transaction: waiting on a reservation row is a live owner, not a technical failure."""
+        try:
+            with self.write(lock_timeout_ms=lock_timeout_ms) as r:
+                yield r
+        except DBAPIError as error:
+            if lock_timeout(error):
+                raise Busy(f'{label} is held by a live owner; retry within the request deadline') from error
+            raise
+
+    def claim(self,tenant,external_id,payload_hash,*,lock_timeout_ms=1000):
         identity(tenant,external_id,payload_hash)
+        with self.read() as r:
+            # No row lock: a conflicting hash or a finished analysis answers at once,
+            # even while the owner is finalizing and holds the reservation row.
+            row=r.session.execute(select(m.analysis_claim.c.payload_hash,m.analysis_claim.c.state).where(
+                scope(m.analysis_claim,tenant_id=tenant,external_id=external_id))).mappings().first()
+            if row is not None:
+                if row['payload_hash']!=payload_hash:
+                    raise HashConflict('Tenant/ID permanently reserved with another payload')
+                if row['state']=='completed':
+                    return Replay(r.get(tenant,external_id))
         owner=uuid4()
-        with self.write() as r:
+        with self.coordination('Operation reservation',lock_timeout_ms=lock_timeout_ms) as r:
             values=dict(tenant_id=tenant,external_id=external_id,payload_hash=payload_hash,owner_id=owner,
-                        fencing_token=1,lease_until=func.clock_timestamp()+timedelta(seconds=10),state='in_progress')
+                        fencing_token=1,lease_until=func.clock_timestamp()+LEASE,state='in_progress')
             r.session.execute(insert(m.analysis_claim).values(**values).on_conflict_do_nothing())
             row=r.session.execute(select(m.analysis_claim).where(scope(m.analysis_claim,tenant_id=tenant,
                 external_id=external_id)).with_for_update()).mappings().one()
@@ -137,45 +217,45 @@ class PixStorage:
                 raise HashConflict('Tenant/ID permanently reserved with another payload')
             if row['state']=='completed':
                 return Replay(r.get(tenant,external_id))
-            fence=row['fencing_token']
+            fence,lease=row['fencing_token'],row['lease_until']
             if row['owner_id']!=owner:
-                if row['lease_until']>r.now():
+                if lease>r.now():
                     raise Busy('Operation already has an active owner')
                 fence+=1
-                r.session.execute(m.analysis_claim.update().where(scope(m.analysis_claim,tenant_id=tenant,
+                lease=r.session.execute(m.analysis_claim.update().where(scope(m.analysis_claim,tenant_id=tenant,
                     external_id=external_id)).values(owner_id=owner,fencing_token=fence,
-                        lease_until=func.clock_timestamp()+timedelta(seconds=10)))
-            return ClaimTicket(tenant,external_id,payload_hash,owner,fence)
+                        lease_until=func.clock_timestamp()+LEASE).returning(m.analysis_claim.c.lease_until)).scalar_one()
+            return ClaimTicket(tenant,external_id,payload_hash,owner,fence,lease)
 
-    def claim_initial(self,ticket,payer):
+    def claim_initial(self,ticket,payer,*,lock_timeout_ms=1000):
         account(payer)
         if payer.tenant!=ticket.tenant:
             raise ValueError('Initial check outside operation tenant')
         owner=uuid4(); key=initial_key(payer)
-        with self.write() as r:
+        with self.coordination('Source initial check',lock_timeout_ms=lock_timeout_ms) as r:
             r.require_claim(ticket)
             r.ensure_account(payer)
             r.session.execute(insert(m.source_initial).values(**key,claim_external_id=ticket.external_id,
-                owner_id=owner,fencing_token=1,lease_until=func.clock_timestamp()+timedelta(seconds=10),
+                owner_id=owner,fencing_token=1,lease_until=func.clock_timestamp()+LEASE,
                 state='in_progress').on_conflict_do_nothing())
             row=r.session.execute(select(m.source_initial).where(scope(m.source_initial,**key)).with_for_update()).mappings().one()
             if row['state']=='completed':
                 return None
-            fence=row['fencing_token']
+            fence,lease=row['fencing_token'],row['lease_until']
             if row['owner_id']!=owner:
-                if row['lease_until']>r.now():
+                if lease>r.now():
                     raise Busy('Source initial lookup has another live owner')
                 fence+=1
-                r.session.execute(m.source_initial.update().where(scope(m.source_initial,**key)).values(
+                lease=r.session.execute(m.source_initial.update().where(scope(m.source_initial,**key)).values(
                     owner_id=owner,fencing_token=fence,claim_external_id=ticket.external_id,
-                    lease_until=func.clock_timestamp()+timedelta(seconds=10)))
-            return InitialTicket(ticket,payer,owner,fence)
+                    lease_until=func.clock_timestamp()+LEASE).returning(m.source_initial.c.lease_until)).scalar_one()
+            return InitialTicket(ticket,payer,owner,fence,lease)
 
-    def complete_initial(self,ticket,result):
+    def complete_initial(self,ticket,result,*,lock_timeout_ms=1000):
         if (not isinstance(result,ReputationRecord) or result.key.tenant!=ticket.payer.tenant
                 or result.key.document!=ticket.payer.document):
             raise ValueError('Initial result must match exact source subject/tenant')
-        with self.write() as r:
+        with self.coordination('Source initial check',lock_timeout_ms=lock_timeout_ms) as r:
             r.require_claim(ticket.claim)
             row=r.session.execute(select(m.source_initial).where(scope(m.source_initial,
                 **initial_key(ticket.payer))).with_for_update()).mappings().first()
@@ -185,6 +265,8 @@ class PixStorage:
                 raise LostClaim('Initial check owner/token/lease is no longer valid')
             if result.evidence.available_at>r.now():
                 raise ValueError('Cannot complete initial check with unknown future coverage')
+            # A conflicting cached revision aborts the whole completion: the reservation
+            # stays with its owner for a corrected retry or expires for takeover.
             r.put_snapshots((result,))
             r.session.execute(m.source_initial.update().where(scope(m.source_initial,**initial_key(ticket.payer))).values(
                 state='completed',result=pack(result),completed_at=func.clock_timestamp()))
@@ -242,10 +324,8 @@ class PixStorage:
         return row,pix
 
     def bind_challenge(self,tenant,provider,external_id,key,challenge_id,operation_fingerprint):
-        identity(tenant,external_id)
-        ProviderIdentity(provider,'v1')
-        if not isinstance(challenge_id,str) or not challenge_id.strip() or len(challenge_id)>128:
-            raise InvalidEvent('Explicit bank challenge required')
+        key=binding(tenant,provider,external_id,operation_fingerprint,key,require_key=True)
+        challenge_id=bank_reference(challenge_id,'bank challenge')
         with self.write() as r:
             row,pix=self._linked(r,tenant,external_id,key,operation_fingerprint)
             r.lock(pix,(('challenge',tenant,provider,challenge_id),))
@@ -262,9 +342,8 @@ class PixStorage:
             return 'created'
 
     def link_bank_operation(self,tenant,provider,operation_id,external_id,operation_fingerprint):
-        identity(tenant,external_id);ProviderIdentity(provider,'v1')
-        if not isinstance(operation_id,str) or not operation_id.strip() or len(operation_id)>128:
-            raise InvalidEvent('Explicit bank operation ID required')
+        binding(tenant,provider,external_id,operation_fingerprint)
+        operation_id=bank_reference(operation_id,'bank operation ID')
         with self.write() as r:
             row,pix=self._linked(r,tenant,external_id,fp=operation_fingerprint)
             r.lock(pix,(('bank-operation',tenant,provider,operation_id),))
@@ -307,9 +386,9 @@ class PixStorage:
             elif value.kind=='auth':
                 if value.state not in ('passed','failed','expired') or value.state!='failed' and not value.terminal:
                     raise InvalidEvent('Invalid authentication result')
-                binding=r.session.execute(select(m.challenge).where(scope(m.challenge,tenant_id=value.tenant,
+                binding_row=r.session.execute(select(m.challenge).where(scope(m.challenge,tenant_id=value.tenant,
                     provider=value.provider,challenge_id=value.challenge_id,pix_id=row['id']))).mappings().first()
-                if binding is None or value.occurred_at<row['decision_at']:
+                if binding_row is None or value.occurred_at<row['decision_at']:
                     raise InvalidEvent('Authentication requires the exact bound challenge')
                 order=(value.occurred_at,value.source_version)
                 for e in previous:

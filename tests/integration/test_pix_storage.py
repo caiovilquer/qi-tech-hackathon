@@ -32,14 +32,18 @@ def storage(migration_db):
     return PixStorage(sessionmaker(bind=migration_db, autoflush=False))
 
 
-def normalized(external='pix-current', amount=5000):
-    payload = deepcopy(OFFICIAL_PAYLOAD)
-    payload['id'], payload['amount'] = external, amount
+def normalized(external='pix-current', amount=5000, payload=None):
+    # A custom official payload is used as given; the default one takes id/amount.
+    custom = payload is not None
+    payload = deepcopy(OFFICIAL_PAYLOAD if payload is None else payload)
+    if not custom:
+        payload['id'], payload['amount'] = external, amount
     return normalize_payload(payload)
 
 
-def prepare(storage, external='pix-current', tenant='demo', amount=5000):
-    n = normalized(external, amount)
+def prepare(storage, external='pix-current', tenant='demo', amount=5000, payload=None):
+    n = normalized(external, amount, payload)
+    external = n.canonical_payload['id']
     p = to_pix(n, tenant)
     claim = storage.claim(tenant, external, n.payload_hash)
     initial = storage.claim_initial(claim, p.payer)
@@ -49,8 +53,8 @@ def prepare(storage, external='pix-current', tenant='demo', amount=5000):
     return n, p, claim
 
 
-def save(storage, external='pix-current', tenant='demo', amount=5000, security=None, receipt=None):
-    n, p, claim = prepare(storage, external, tenant, amount)
+def save(storage, external='pix-current', tenant='demo', amount=5000, security=None, receipt=None, payload=None):
+    n, p, claim = prepare(storage, external, tenant, amount, payload)
     with storage.analysis(claim, p) as work:
         c = work.context(p, datetime.now(timezone.utc), Policy())
         if security is not None:
@@ -86,9 +90,11 @@ def test_operation_claim_is_reserved_before_data_and_hash_is_permanent(storage):
     assert storage.get('demo', claim.external_id) is None
     with storage.sessions() as s:
         assert s.execute(text('SELECT count(*) FROM pix_transaction')).scalar() == 0
+    assert claim.lease_until is not None and claim.lease_until.tzinfo is not None
     expire(storage, 'analysis_claim', tenant_id='demo', external_id=claim.external_id)
     takeover = storage.claim('demo', claim.external_id, n.payload_hash)
     assert takeover.fence == claim.fence+1 and takeover.owner != claim.owner
+    assert takeover.lease_until > claim.lease_until  # renewed on the PostgreSQL clock
     with pytest.raises(LostClaim), storage.analysis(claim, to_pix(n, 'demo')):
         pass
     with pytest.raises(HashConflict):
@@ -243,11 +249,11 @@ def test_internal_execution_events_are_idempotent_linked_and_terminal(storage):
     assert storage.get('demo',p.id) == dto
 
 
-def two_fa(storage):
+def two_fa(storage, external='pix-current'):
     from antifraud.context import SecuritySnapshot
     now=datetime.now(timezone.utc)
     security=SecuritySnapshot(now-timedelta(seconds=1),now-timedelta(seconds=1),now+timedelta(minutes=5),'unregistered')
-    return save(storage,amount=30000,security=security)
+    return save(storage,external,amount=30000,security=security)
 
 
 def test_auth_is_separate_and_exact_challenge_binding_releases_exposure(storage):
@@ -651,3 +657,168 @@ def test_valid_policy_scores_are_not_silently_limited_to_int32(storage):
         dto=work.complete(n,c,policy)
     assert dto.public['metadata']['score']==3000000010  # +10 recent payee account remains active
     assert storage.get('demo',p.id)==dto
+
+
+# --- Regressions from the independent review of 7fead97 ----------------------------------
+
+def test_linked_bank_execution_is_one_fact_through_enricher_and_writer(storage):
+    import asyncio
+    from antifraud.context import BankPayment, ExecutionEvent
+    from providers.budget import Deadline
+    from providers.enrichment import Enricher, SourceCheck
+    from providers.fixtures import FixtureBankProvider, FixtureReputationProvider
+    _,prev,before=save(storage,'previous')
+    storage.link_bank_operation('demo','bank-demo','bank-op-1',prev.id,fingerprint(prev))
+    storage.ingest(event(prev,before,event_id='exec-1'))  # bank fact persisted locally before the final transaction
+    occurred=datetime.fromisoformat(before.public['metadata']['decision_at'].replace('Z','+00:00'))
+    payment=BankPayment('bank-demo','bank-op-1',replace(prev,id='bank-op-1'),
+                        ExecutionEvent('exec-1',prev.payer,'bank-op-1','executed',occurred,occurred))
+    n,p,claim=prepare(storage)
+    with storage.read() as r:
+        base=r.context(p,datetime.now(timezone.utc),Policy())
+        links=r.bank_links(p.payer)
+    assert len(base.execution_events)==1 and len(links)==1
+    enricher=Enricher(FixtureBankProvider(IDENTITY,history=(payment,)),FixtureReputationProvider(IDENTITY),Policy())
+    outcome=asyncio.run(enricher.enrich(base,source_check=SourceCheck.COMPLETED,deadline=Deadline.after(3),links=links))
+    assert outcome.context.execution_events==base.execution_events  # one fact, never a second unverifiable copy
+    assert outcome.context.bank_payments==()
+    with storage.analysis(claim,p) as work:
+        dto=work.complete(n,replace(outcome.context,decision_at=work.now()),Policy())
+    assert dto.audit['features']['payer_history_count']==1 and dto.audit['features']['bank_payment_count']==0
+    assert storage.get('demo',p.id)==dto
+
+
+def test_writer_distinguishes_unpersisted_executions_and_clock_bounds(storage):
+    from antifraud.context import ExecutionEvent
+    _,prev,_=save(storage,'previous')
+    n,p,claim=prepare(storage)
+    with storage.analysis(claim,p) as work:
+        now=work.now(); current=work.context(p,now,Policy())
+        foreign=ExecutionEvent('bank-demo:never-ingested',p.payer,prev.id,'executed',now-timedelta(seconds=1),now-timedelta(seconds=1))
+        with pytest.raises(ValueError,match='not persisted locally'):
+            work.complete(n,replace(current,execution_events=(foreign,)),Policy())
+        with pytest.raises(ValueError,match='precedes the account locks'):
+            work.complete(n,replace(current,decision_at=now-timedelta(hours=1)),Policy())
+        with pytest.raises(ValueError,match='ahead of the PostgreSQL clock'):
+            work.complete(n,replace(current,decision_at=now+timedelta(hours=1)),Policy())
+    assert storage.get('demo',p.id) is None
+
+
+def test_claim_while_owner_finalizes_is_busy_and_hash_conflict_does_not_wait(storage):
+    n,p,c=prepare(storage)
+    def compete(hash_,timeout):
+        try:
+            return storage.claim('demo',p.id,hash_,lock_timeout_ms=timeout)
+        except (Busy,HashConflict) as error:
+            return type(error)
+    with storage.analysis(c,p) as work:  # holds the reservation row FOR UPDATE
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            assert pool.submit(compete,n.payload_hash,30).result(timeout=5) is Busy
+            assert pool.submit(compete,'f'*64,1000).result(timeout=5) is HashConflict
+        dto=work.complete(n,work.context(p,work.now(),Policy()),Policy())
+    replay=storage.claim('demo',p.id,n.payload_hash)
+    assert isinstance(replay,Replay) and replay.dto==dto
+
+
+def test_known_expired_security_is_refused_by_writer(storage):
+    from antifraud.context import SecuritySnapshot
+    n,p,c=prepare(storage)
+    with pytest.raises(ValueError,match='expired'), storage.analysis(c,p) as work:
+        now=work.now()
+        expired=SecuritySnapshot(now-timedelta(minutes=2),now-timedelta(minutes=2),now-timedelta(minutes=1),'registered')
+        work.complete(n,replace(work.context(p,now,Policy()),security=expired),Policy())
+    assert storage.get('demo',p.id) is None
+
+
+def test_raw_body_is_optional_bounded_and_bound_to_the_canonical_hash(storage):
+    import json
+    n,p,c=prepare(storage)
+    payload=deepcopy(OFFICIAL_PAYLOAD); payload['id'],payload['amount']=p.id,p.amount_cents
+    raw=json.dumps(payload,indent=2).encode()
+    with storage.analysis(c,p) as work:
+        ctx=work.context(p,work.now(),Policy())
+        for bad in (raw[:-1],json.dumps(dict(payload,amount=payload['amount']+1)).encode(),b'{}'+b' '*65536,raw.decode()):
+            with pytest.raises(ValueError):
+                work.complete(n,ctx,Policy(),raw_body=bad)
+        dto=work.complete(n,ctx,Policy(),raw_body=raw)
+    with storage.sessions() as s:
+        assert bytes(s.execute(text('SELECT raw_body FROM pix_transaction')).scalar())==raw
+    assert storage.get('demo',p.id)==dto
+
+
+def test_challenge_binding_requires_key_and_fingerprint_and_is_exclusive(storage):
+    n,p,dto=two_fa(storage)
+    key=dto.public['key']
+    assert storage.bind_challenge('demo','bank-demo',p.id,key,'challenge',fingerprint(p))=='created'
+    assert storage.bind_challenge('demo','bank-demo',p.id,key,'challenge',fingerprint(p))=='replay'
+    with pytest.raises(InvalidEvent):
+        storage.bind_challenge('demo','bank-demo',p.id,key,'another',fingerprint(p))  # one binding per analysis
+    for bad in (dict(key=None),dict(key=str(uuid4())),dict(key='not-a-uuid'),dict(fp='zz'),
+                dict(provider='bank demo'),dict(challenge='\x00')):
+        with pytest.raises(InvalidEvent):
+            storage.bind_challenge('demo',bad.get('provider','bank-demo'),p.id,bad.get('key',key),
+                                   bad.get('challenge','other'),bad.get('fp',fingerprint(p)))
+    _,q,second=two_fa(storage,'second-2fa')
+    with pytest.raises(InvalidEvent):
+        storage.bind_challenge('demo','bank-demo',q.id,second.public['key'],'challenge',fingerprint(q))
+    with pytest.raises(InvalidEvent):
+        storage.link_bank_operation('demo','bank-demo','op',p.id,'zz')
+
+
+def test_receipt_is_finalized_once(storage):
+    receipt=storage.receive('once','demo')
+    storage.finish_receipt(receipt,'demo',400,'invalid_input')
+    with pytest.raises(ValueError):
+        storage.finish_receipt(receipt,'demo',200,'replay')
+    n,p,c=prepare(storage)
+    with pytest.raises(ValueError), storage.analysis(c,p) as work:
+        work.complete(n,work.context(p,work.now(),Policy()),Policy(),receipt_id=receipt)
+    assert storage.get('demo',p.id) is None
+
+
+def test_initial_completion_conflict_leaves_reservation_with_its_owner(storage):
+    n=normalized(); p=to_pix(n,'demo'); c=storage.claim('demo',p.id,n.payload_hash)
+    adverse=reputation_record(p.payer.document,fraud_count=3)
+    with storage.write() as r:
+        r.put_snapshots((adverse,))
+    ticket=storage.claim_initial(c,p.payer)
+    assert ticket.lease_until is not None
+    clean=replace(adverse,evidence=replace(adverse.evidence,fraud_count=0))
+    with pytest.raises(RecordConflict):
+        storage.complete_initial(ticket,clean)
+    assert storage.initial(p.payer) is None
+    storage.complete_initial(ticket,adverse)
+    assert storage.initial(p.payer)==adverse
+
+
+def test_codec_reports_malformed_stored_content_as_value_error():
+    for bad in ({'datetime':123},{'type':'AccountKey','data':['x']},{'tuple':'x'},1.5,
+                {'type':'AccountKey','data':{'tenant':1,'branch':'1','account':'1','document':'1'}}):
+        with pytest.raises(ValueError):
+            unpack({'version':1,'value':bad})
+
+
+def test_destination_history_is_limited_to_the_fan_in_window(storage):
+    from antifraud.features import build_features
+    def dated(external,days_ago,account=None):
+        payload=deepcopy(OFFICIAL_PAYLOAD); payload['id'],payload['amount']=external,5000
+        when=datetime.fromisoformat(payload['transaction_date'])-timedelta(days=days_ago)
+        payload['transaction_date']=when.isoformat()
+        if account is not None:
+            payload['source_account']['account_number']=account
+        return payload
+    save(storage,payload=dated('other-old',2,'99999'))
+    save(storage,payload=dated('mine-old',2))
+    save(storage,payload=dated('other-recent',0,'99999'))
+    n,p,_=prepare(storage)
+    with storage.read() as r:
+        c=r.context(p,datetime.now(timezone.utc),Policy())
+    assert {h.pix.id for h in c.history}=={'mine-old','other-recent'}
+    assert build_features(c,Policy()).fan_in_payers==2
+
+
+def test_read_transactions_are_bounded_and_read_committed(storage):
+    with storage.read() as r:
+        assert r.session.execute(text('SHOW statement_timeout')).scalar()=='3s'
+        assert r.session.execute(text('SHOW lock_timeout')).scalar()=='1s'
+        assert r.session.execute(text('SHOW transaction_isolation')).scalar()=='read committed'

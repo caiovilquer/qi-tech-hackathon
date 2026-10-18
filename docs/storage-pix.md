@@ -20,6 +20,7 @@ indevidamente ao PDF. Política numérica permanece experimental e inalterada.
 - `dtos/pix_storage.py`: tickets/outcomes imutáveis e eventos de entrada tipados;
   `utils/pix_storage_codec.py`: JSON versionado com whitelist de tipos. Sem
   pickle/eval, SQL dinâmico do cliente ou desserialização de classes arbitrárias.
+  Conteúdo armazenado malformado é sempre `ValueError`, nunca erro de tipo solto.
 
 Receber o DTO de `work.complete` dentro do with é valor interno. O chamador
 só pode responder sucesso **depois** de sair de `storage.analysis` sem erro,
@@ -29,25 +30,37 @@ na integração seguinte. Não há tentativa de adivinhar commit remoto neste se
 
 ## Reservas e checagem inicial
 
-`storage.claim(tenant, external_id, payload_hash)` confirma uma reserva curta
-antes de providers. Retorna ClaimTicket (UUID de dono/fencing), Replay com DTO
-imutável concluído, Busy para outro dono ativo ou HashConflict QIT002002 para
-hash diferente, inclusive em voo. Hash e ID são permanentes. GET interno não
-retorna reserva sem análise. Lease vencida permite takeover com fence crescente;
-o dono anterior não consegue iniciar/concluir a transação final.
+`storage.claim(tenant, external_id, payload_hash, lock_timeout_ms=1000)` confirma
+uma reserva curta antes de providers. Retorna ClaimTicket (dono, fencing e
+`lease_until` no relógio PostgreSQL), Replay com DTO imutável concluído, Busy para
+outro dono ativo ou HashConflict QIT002002 para hash diferente, inclusive em voo.
+Uma leitura sem lock responde HashConflict/Replay de imediato mesmo com a linha da
+reserva travada pelo dono em transação final; esperar por essa linha até
+`lock_timeout_ms` (SQLSTATE 55P03) também é Busy, não falha técnica. Hash e ID são
+permanentes. GET interno não retorna reserva sem análise. Lease vencida permite
+takeover com fence crescente; o dono anterior não consegue iniciar/concluir a
+transação final. Não há renovação de lease: a transação final deve começar dentro
+dos 10 s informados em `lease_until`.
 
 `claim_initial(operation_ticket, AccountKey)` exige posse atual da operação,
 valida titularidade por tenant/branch/account e reserva uma lease/token própria
-da origem. Ausência é unclaimed; outro dono ativo gera Busy, não completed.
-Retorna InitialTicket ou None quando a checagem já está completed. Mudança de
-titular exige reconciliação explícita, sem misturar histórico/contadores.
+da origem. Ausência é unclaimed; outro dono ativo, inclusive a espera pela linha
+até `lock_timeout_ms`, gera Busy, não completed. Retorna InitialTicket (com
+`lease_until`) ou None quando a checagem já está completed. Mudança de titular
+exige reconciliação explícita, sem misturar histórico/contadores: `pix_account` é
+imutável por trigger e nesta etapa não existe API nem migration para reatribuir
+uma conta; esse caminho operacional fica para uma etapa posterior.
 
 `complete_initial(initial_ticket, selected_reputation_record)` trava/verifica
 **ambos** os tokens, donos e leases. Persiste exatamente o resultado tipado
 selecionado na conclusão, inclusive unavailable/not_covered/stale, e fatos
 cacheáveis no mesmo commit. Completed é imutável e sobrevive à falha/rejeição
 da análise. Não transformar esse estado em declaração de pessoa limpa: os
-fatos têm validade própria. Troca de device não reinicia a checagem.
+fatos têm validade própria. Troca de device não reinicia a checagem. Se o cache
+já guarda a mesma revisão (observed_at/source_version) com fato ou proveniência
+diferentes, `RecordConflict` aborta a conclusão inteira: a reserva permanece com o
+dono para uma nova tentativa corrigida, ou vence para takeover. Não se inventa
+indisponibilidade nem se grava um fato conflitante para destravar a conta.
 
 Leases são 10 s no relógio UTC do PostgreSQL. Não há espera/polling infinito,
 renovação implícita ou sucesso de dono substituído. A API futura deve tratar
@@ -64,28 +77,48 @@ convertidas para int64 assinado; ordenam-se os IDs numéricos efetivos e removem
 duplicados. Colisão só reduz paralelismo. Lock timeout é 1 s, configurável para
 menos pela futura integração. O statement timeout de 3 s é por statement,
 **não** prova do deadline total HTTP; esse orçamento pertence à etapa 5.
+Leituras (`read`) usam READ COMMITTED e os mesmos limites de lock/statement.
 
-`work.context(pix, decision_at, policy)` lê histórico relacionado à conta/destino
-na janela comportamental e recebimentos da própria conta na janela de decisão.
-SQL filtra tenant, conta/destino e tempos; não carrega toda a instituição nem
-trunca arbitrariamente contagens/medianas. Eventos têm ocorrência e recebimento
+`work.context(pix, decision_at, policy)` lê o histórico da própria conta na janela
+comportamental, as tentativas ao mesmo destino apenas na janela de 24 h do fan-in
+(`FAN_IN_WINDOW` do motor, única parte do histórico de terceiros que as features
+usam) e recebimentos da própria conta na janela de decisão. SQL filtra tenant,
+conta/destino e tempos; não carrega toda a instituição nem trunca arbitrariamente
+contagens/medianas. Eventos têm ocorrência e recebimento
 separados e só entram quando ambos já eram conhecidos. Tempos sem timezone
 são recusados antes das consultas. Ordenação é determinística.
 
 `work.complete(normalized, context, policy, receipt_id=..., raw_body=...)` exige
 checagem inicial durável, payload/hash/Pix iguais à reserva e decision_at
-capturado após os locks (usar `work.repository.now()` como relógio UTC de
-autoridade para essa captura). Relê o contexto local e recusa histórico/eventos
-omitidos ou desatualizados. Segurança sabidamente vencida também é recusada.
+capturado após os locks com `work.now()`, o relógio UTC do PostgreSQL. O relógio
+da aplicação usado pelo Enricher não serve para esse campo: um decision_at
+anterior aos locks ou à frente do relógio do banco é recusado com mensagens
+distintas. Relê o contexto local e compara histórico, execuções e autenticações
+como multiconjuntos: fato omitido ou desatualizado é "rebuild context under the
+held locks"; execução presente no Context mas ausente do banco é "not persisted
+locally", porque cada fato usado na decisão precisa existir em `bank_event`.
+Segurança sabidamente vencida também é recusada.
 O motor puro calcula a decisão; grava Pix, análise/DTO e snapshot imutáveis,
 conclui o claim e finaliza o receipt no mesmo commit. Falhar após inserts ou
 no próprio commit não deixa meia análise ou claim completed.
 
-A integração futura deve enriquecer fora dos locks, persistir fatos externos
-verificados e, sob locks, montar o contexto local atual e recalcular C_pre.
-Se precisar de consulta, libera a transação, consulta e revalida, até três
-ciclos/3 s. Não entregar Context pré-lock como se fosse atual; a biblioteca
-recusa isso, mas não executa o coordenador HTTP completo nesta etapa.
+Protocolo esperado do coordenador da etapa 5, por ciclo:
+
+1. Fora de locks: `base = repo.context(pix, now, policy)` e `links = repo.bank_links(payer)`;
+   `Enricher.enrich(base, ..., links=links)`.
+2. Persistir fatos externos verificados em transações curtas: `put_snapshots` para
+   `cache_updates`, `link_bank_operation` e `ingest` para cada execução bancária
+   vinculada a uma operação local. A reconciliação da etapa 3 reconhece uma
+   execução já conhecida localmente pelo mesmo provider/ID e não a duplica; o
+   instante de recebimento local é metadado de conhecimento, não parte do fato.
+3. Sob locks: `now = work.now()`, `work.complete(normalized,
+   replace(enriched.context, decision_at=now), policy)`. A substituição do
+   decision_at revalida ações `cache` em `Context`; evidência vencida nesse
+   instante exige novo ciclo, até três ciclos/3 s.
+
+Não entregar Context pré-lock como se fosse atual nem carregar no Context uma
+execução bancária que não foi ingerida; a biblioteca recusa ambos, mas não
+executa o coordenador HTTP completo nesta etapa.
 
 ## Receipts, hash e análise original
 
@@ -110,9 +143,12 @@ reservas concluídas. Não há quarto status antifraude.
 
 ## Eventos bancários e vínculos internos
 
-`bind_challenge` exige análise original two_factor_required, tenant/ID/key,
-fingerprint financeiro exato e challenge ID explícito emitido pelo banco.
-Um vínculo por análise; outro Pix/valor/destino não pode reaproveitá-lo.
+`bind_challenge` exige análise original two_factor_required, tenant/ID, `key`
+(UUID obrigatório), fingerprint financeiro exato (hex de 64) e challenge ID
+explícito emitido pelo banco. Provider fora do padrão, key ausente/inválida,
+fingerprint malformado ou identificador com caractere de controle são InvalidEvent
+QIT002007 antes de qualquer SQL. Um vínculo por análise; outro Pix/valor/destino
+não pode reaproveitá-lo; repetir o mesmo vínculo é replay.
 `link_bank_operation` faz ligação por provider/ID bancário, sem heurística de
 valor/horário. `bank_links(AccountKey)` retorna todos os vínculos da conta,
 sem omitir aliases por paginação silenciosa.
@@ -133,6 +169,9 @@ Autenticação aceita passed, failed não terminal/terminal e expired terminal,
 sempre com desafio exato. Entrega antiga não terminal pode chegar depois de
 sucesso; ordem/versionamento da fonte impede reabrir ou contradizer terminal.
 Na entrada do motor, expired vira failed terminal para a mesma análise/desafio.
+Dois eventos distintos do mesmo provider com occurred_at e source_version iguais e
+estados diferentes são recusados como revisão conflitante: uma fonte sem
+versionamento precisa diferenciar seus eventos pelo instante.
 Passar 2FA não cadastra device. Falha terminal só libera exposição vinculada;
 execução financeira continua em trilha independente.
 
@@ -162,3 +201,9 @@ inclusive indisponível permanece durável em source_initial_check.
 Cache usa somente os registros normalizados, não EnrichmentProgress com
 Deadline/callable. Persistência de progresso e uso de SourceCheck/resume devem
 ser conectados pelo coordenador da etapa 5, comprovando posse/fencing.
+
+## Correções da revisão independente
+
+Os achados da revisão do SHA `7fead97`, as decisões sobre os itens opcionais e as
+regressões correspondentes estão em
+[CORRECOES-REVISAO-PR4.md](CORRECOES-REVISAO-PR4.md).

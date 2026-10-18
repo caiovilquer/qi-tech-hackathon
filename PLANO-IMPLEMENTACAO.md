@@ -154,7 +154,8 @@ migrations vazia/existente; índices/consultas de janela limitadas. **Riscos:**
 ordem de locks, colisões, sessão após erro, adoção de eventuais schemas antigos.
 
 **Entrega da etapa 4:** [storage e protocolo](docs/storage-pix.md),
-[evidências](docs/validacao-pr4.md) e [prompt independente](docs/REVISAO-PR4.md).
+[evidências](docs/validacao-pr4.md), [prompt independente](docs/REVISAO-PR4.md)
+e [correções da revisão](docs/CORRECOES-REVISAO-PR4.md).
 
 ### PR 5 — `feat/pix-api`: fluxo HTTP completo e concorrente
 

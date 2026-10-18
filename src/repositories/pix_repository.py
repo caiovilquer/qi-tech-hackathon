@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import insert
 from models import pix as m
 from antifraud.context import Context, Pix, AccountKey, DestinationKey, HistoricalAnalysis, ExecutionEvent, AuthEvent, supported_time
 from antifraud.dto import PixTransactionDTO, _freeze
+from antifraud.features import FAN_IN_WINDOW
 from providers.contracts import BankRecord, ReputationRecord, BankLink
 from providers.selection import select_security, select_reputation
 from dtos.pix_storage import LostClaim, OwnershipConflict, RecordConflict
@@ -80,6 +81,12 @@ class PixRepository:
                    row['amount_cents'],row['transaction_at'],row['destination_opened_at'],row['device_id'])
 
     def context(self,pix,at,policy):
+        """Local facts known at `at`: the payer's behavioural window plus the destination fan-in window.
+
+        Rows of other payers only feed the 24 h MULE_FAN_IN aggregate, so they are
+        not loaded for the whole behavioural window. Events carry occurrence and
+        local receipt; both must be known at `at`.
+        """
         supported_time(at,'history knowledge time')
         at=at.astimezone(timezone.utc)
         t=pix.transaction_at.astimezone(timezone.utc)
@@ -87,7 +94,8 @@ class PixRepository:
                   m.pix.c.payer_document==pix.payer.document)
         destination=and_(m.pix.c.participant==pix.destination.participant,m.pix.c.destination_branch==pix.destination.branch,
                          m.pix.c.destination_account==pix.destination.account)
-        history=and_(m.pix.c.transaction_at>t-timedelta(days=policy.history_days),m.pix.c.transaction_at<=t,or_(mine,destination))
+        history=and_(m.pix.c.transaction_at<=t,or_(and_(mine,m.pix.c.transaction_at>t-timedelta(days=policy.history_days)),
+                                                  and_(destination,m.pix.c.transaction_at>t-FAN_IN_WINDOW)))
         receipts=and_(mine,m.analysis.c.decision_at>at-timedelta(minutes=policy.velocity_minutes))
         query=select(m.pix,m.analysis.c.status,m.analysis.c.decision_at,m.analysis.c.sequence,
                      m.analysis.c.device_state,m.analysis.c.night_qualifies,m.challenge.c.challenge_id).join(m.analysis,

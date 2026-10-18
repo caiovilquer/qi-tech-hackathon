@@ -16,7 +16,8 @@ As PRs 1, 2 e 3 e a PR #4 de documentação foram mergeadas. A etapa 4
 
 1. [Prompt independente](REVISAO-PR4.md), [plano](../PLANO-IMPLEMENTACAO.md)
    e [README](../README.md).
-2. [Persistência e protocolo](storage-pix.md) e [evidências/TDD](validacao-pr4.md).
+2. [Persistência e protocolo](storage-pix.md), [evidências/TDD](validacao-pr4.md)
+   e [correções da revisão independente](CORRECOES-REVISAO-PR4.md).
 3. Guia V3 §§4, 5.3, 7 e 8; enunciado e fontes abaixo. Migrations anteriores
    são imutáveis; schema novo em 0002_pix_storage.sql. Não há rotas Pix nesta etapa.
 
