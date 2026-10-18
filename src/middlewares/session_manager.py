@@ -6,8 +6,8 @@ from database import clear_context, open_context
 def register_session_manager_middleware(application: FastAPI) -> None:
     """Owns the lifecycle of the Base API session: opened lazily, rolled back on error, always closed.
 
-    It never commits; controllers decide when their work is complete. Routes that build no
-    controller (home, health check) never open a session and do not depend on the database.
+    It never commits; controllers decide when their work is complete. Routes that never ask for
+    the session (health check, Pix, which uses PixStorage transactions) do not open a connection.
     """
 
     @application.middleware("http")

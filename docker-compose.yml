@@ -40,9 +40,6 @@ services:
       PIX_TENANTS: ${PIX_TENANTS:-}
       PIX_FIXTURE_FILE: ${PIX_FIXTURE_FILE:-}
       PIX_POLICY_FILE: ${PIX_POLICY_FILE:-/app/antifraud/policies.json}
-      BANKSLIP_API_URL: ${BANKSLIP_API_URL:-http://localhost:8080}
-      BANKSLIP_API_INTERNAL_TOKEN: ${BANKSLIP_API_INTERNAL_TOKEN:-default_token}
-      BANKSLIP_API_TIMEOUT: ${BANKSLIP_API_TIMEOUT:-5}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health_check')"]
       interval: 2s

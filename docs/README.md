@@ -11,7 +11,6 @@ como rodar, erros, logs e testes. Os arquivos abaixo aprofundam cada parte.
 | [storage-pix.md](storage-pix.md) | Persistência: claims, leases, locks, eventos bancários e snapshots |
 | [migrations.md](migrations.md) | Migrations SQL versionadas, adoção de banco existente e testes de upgrade |
 | [aceitacao-pix.md](aceitacao-pix.md) | Matriz de aceitação do guia V3 §11.2, demonstração reproduzível e limites da evidência |
-| [guia-apresentacao.md](guia-apresentacao.md) | Roteiro da apresentação (também em [PDF](guia-apresentacao.pdf)) |
 | [referencia/](referencia/) | Guia V3 de implementação e a referência Python V3 (motor, contrato, testes e resultados) usada pela comparação `tests/reference/verify_pix_reference.py` |
 
 A política é experimental; nenhum documento alega calibração, eficácia antifraude ou

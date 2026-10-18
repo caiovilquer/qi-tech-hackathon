@@ -181,10 +181,13 @@ docker compose -p pix-tests -f compose.test.yml run --rm --no-deps \
 docker compose -p pix-tests -f compose.test.yml down -v --remove-orphans
 ```
 
-São **448 testes** (HTTP real, concorrência, processos, falhas SQL, tempo, providers,
+São **415 testes** (HTTP real, concorrência, processos, falhas SQL, tempo, providers,
 migrations e aceitação) mais a comparação com a referência Python V3 (59 observações e
 2.000 contextos com `Decision` equivalente). A guarda exige `APP_ENV=testing`, banco
-`pix_test_` e confirma por sentinela que a API usa o mesmo banco antes de coletar.
+`pix_test_` e confirma por sentinela que a API usa o mesmo banco antes de coletar: uma
+análise mínima gravada direto no banco é lida por `GET /pix/transaction/{id}`. Registros
+Pix são imutáveis, então a sentinela fica no banco descartável, identificada pelo prefixo
+`sentinel-` e pela política `test-sentinel`.
 A cobertura por grupo do guia e os limites da evidência estão em
 [docs/aceitacao-pix.md](docs/aceitacao-pix.md).
 
@@ -237,9 +240,9 @@ Normalização, DICT condicional, eventos, locks e protocolos são decisões do
 [guia V3](docs/referencia/GUIA-IMPLEMENTACAO-ANTIFRAUDE-PIX.md). Pesos, cortes, janelas e
 TTL são **experimentais**, sem promessa de calibração, eficácia, conformidade Pix ou
 operação de DICT real. Não há onboarding, execução financeira, frontend ou integração
-bancária real. As rotas Sample Entity da base foram preservadas fora do domínio Pix.
+bancária real. As rotas de exemplo da base (Sample Entity e connector de boletos) foram
+removidas; permanecem apenas health check e Pix.
 
 [Índice da documentação](docs/README.md), [contrato do motor](docs/motor-pix.md),
-[providers](docs/providers-pix.md), [storage/eventos](docs/storage-pix.md) e
-[guia de apresentação](docs/guia-apresentacao.md). A referência Python V3 e seus testes
-originais ficam em `docs/referencia/`.
+[providers](docs/providers-pix.md) e [storage/eventos](docs/storage-pix.md). A referência
+Python V3 e seus testes originais ficam em `docs/referencia/`.

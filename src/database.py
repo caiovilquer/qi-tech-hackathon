@@ -54,6 +54,7 @@ def clear_context() -> None:
 
 
 def get_context() -> Context:
+    """Request context for Base API style controllers; the Pix flow uses PixStorage transactions instead."""
     context = _context.get()
     if context is None:
         raise RuntimeError("No request context: the session manager middleware did not run")

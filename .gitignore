@@ -78,3 +78,7 @@ coverage.xml
 # --- Tipagem estática --------------------------------------
 .mypy_cache/
 .ruff_cache/
+
+# Presentation guide stays local only.
+docs/guia-apresentacao.md
+docs/guia-apresentacao.pdf

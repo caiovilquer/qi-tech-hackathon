@@ -167,6 +167,7 @@ código, seja detectado no enriquecimento, na releitura antes de persistir ou so
 os locks finais; nenhum desses casos instrui retry técnico. Logs escapam
 controles/Unicode em path/query e nos handlers de erro. O pool Pix nasce em
 `pix_engine_for(url)`; os testes ligam os mesmos parâmetros ao banco descartável
-de cada caso, sem gravar Pix no banco compartilhado da sentinela.
+de cada caso, sem gravar Pix no banco compartilhado; ali só entra a análise sentinela da
+guarda de ambiente (`sentinel-*`, política `test-sentinel`), imutável como qualquer análise.
 A cobertura de aceitação, a demonstração integrada e os limites da entrega estão em
 [aceitacao-pix.md](aceitacao-pix.md).
