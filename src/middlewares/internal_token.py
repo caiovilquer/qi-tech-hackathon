@@ -3,6 +3,9 @@ from fastapi import FastAPI, Request
 from constants import BYPASS_ENDPOINTS, INTERNAL_TOKEN
 from errors.base_error import ForbiddenNotInternal
 from errors.handlers import qi_exception_to_response
+from controllers.pix_api import resolve_tenant
+from providers.budget import Deadline
+from utils.request_context import get_request_id
 
 
 def register_internal_token_middleware(application: FastAPI) -> None:
@@ -22,6 +25,18 @@ def register_internal_token_middleware(application: FastAPI) -> None:
         is_public = request.url.path in BYPASS_ENDPOINTS
 
         if request.method == "OPTIONS" or is_public:
+            return await call_next(request)
+
+        if request.url.path == '/pix/transaction' or request.url.path.startswith('/pix/transaction/'):
+            request.state.pix_deadline = Deadline.after(3)
+            credential = request.headers.get('INTERNAL-TOKEN')
+            tenant = resolve_tenant(application.state.pix_tenants, credential)
+            if tenant is None:
+                # Authentication denial is logged by request_logger. Never let
+                # anonymous requests acquire a connection or write receipts.
+                return qi_exception_to_response(ForbiddenNotInternal())
+            request.state.pix_tenant = tenant
+            request.state.request_id = get_request_id()
             return await call_next(request)
 
         if request.headers.get("INTERNAL-TOKEN") != INTERNAL_TOKEN:

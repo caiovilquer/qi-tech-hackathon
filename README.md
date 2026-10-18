@@ -1,9 +1,9 @@
 # Antifraude Pix
 
 Implementação em etapas sobre a Base API do Bootcamp QI Tech. **Estado atual:
-PRs 1, 2 e 3 aprovadas e mergeadas; etapa 4 de persistência interna
-(`feat/pix-storage`) implementada, aguardando revisão.** A API de exemplo funciona com
-PostgreSQL real; os endpoints Pix ainda não estão disponíveis.
+etapas 1–4 aprovadas e mergeadas; etapa 5 (`feat/pix-api`) implementada para
+revisão independente.** POST/GET Pix integram motor, providers simulados e
+PostgreSQL real, com idempotência e revalidação concorrente.
 O [plano de implementação](PLANO-IMPLEMENTACAO.md) define as próximas PRs e os
 critérios de aceitação. Cada etapa depende de revisão e aprovação da anterior.
 
@@ -38,11 +38,11 @@ reconciliação de execuções bancárias sem fabricar solicitações da API.
 [Interfaces e limites](docs/providers-pix.md), [evidências/TDD](docs/validacao-pr3.md)
 e [correções da re-revisão](docs/CORRECOES-REREVISAO-PR3.md).
 
-Há persistência e idempotência internas Pix, além de ingestão de eventos
-bancários vinculados. As rotas Pix e a integração completa com os providers
-ficam na etapa 5. Não há integração externa real com banco/DICT. As rotas de
-exemplo não fazem parte do contrato Pix. O health check mede liveness da API;
-não confirma disponibilidade do banco.
+A etapa 5 integra `POST /pix/transaction` e `GET /pix/transaction/{id}`.
+[Contrato, configuração e protocolo](docs/api-pix.md),
+[evidências/TDD](docs/validacao-pr5.md) e [prompt de revisão](docs/REVISAO-PR5.md).
+Não há integração externa real com banco/DICT. As rotas de exemplo não fazem
+parte do contrato Pix. O health check mede liveness; não confirma o banco.
 
 ## Como rodar
 
@@ -77,7 +77,7 @@ curl -i http://127.0.0.1:3000/sample_entity/CHAVE_RETORNADA \
 
 Documento válido matematicamente não comprova identidade. Repetir o cadastro
 com mesmo documento/e-mail retorna conflito, como na base. Sem token, as rotas
-internas retornam `403 QIT000002`. As rotas Pix ainda retornam 404 com token.
+internas retornam `403 QIT000002`. Os endpoints Pix estão descritos abaixo.
 
 ```bash
 docker compose logs migrate api
@@ -111,7 +111,22 @@ nome em `-p`. Migrations são exercitadas em bancos aleatórios adicionais,
 criados e removidos no servidor de testes (o usuário local de testes precisa
 poder criar bancos). A API não ganha endpoints administrativos para isso.
 
-Validação local final da etapa 4 em **18/10/2026**, no SHA `8f341d6`:
+Validação local da etapa 5 após revisão, em **18/10/2026**: **436 testes passaram
+em 36,50 s**, com PostgreSQL **16.15** real e Python **3.11.17** no Docker.
+São os 413 testes da implementação inicial e **23 casos da revisão**; estes
+passaram isolados em **6,28 s**. Sem skips/xfails; um warning de depreciação do
+`declarative_base` original. Os testes incluem HTTP, processos/crash, concorrência,
+fencing, falhas SQL/commit, clocks, autenticação e isolamento de pools/tenants.
+[Correções e decisões dos oito achados](docs/CORRECOES-REVISAO-PR5.md) e
+[evidências/TDD](docs/validacao-pr5.md). A referência permanece com **92 testes**,
+**59 observações e 2.000 contextos** equivalentes à Decision V3 completa.
+
+Re-revisão independente em **18/10/2026** no SHA `f3401f4`, Linux x86_64, Docker
+29.8.2 e PostgreSQL **16.15** real: quatro achados novos, corrigidos na mesma PR com
+**5 casos** adicionais; build completa com **441 testes em 74,02 s**, sem skips/xfails.
+[Correções da re-revisão](docs/CORRECOES-REREVISAO-PR5.md).
+
+Histórico da etapa 4, validação local final em **18/10/2026**, no SHA `8f341d6`:
 **366 testes passaram em 8,08 s**, incluindo os 35 testes HTTP originais,
 com PostgreSQL **16.15** real e Python **3.11.17** no Docker. São os 354 testes
 da implementação inicial, 11 casos de storage e 1 unitário acrescentados pelas
@@ -122,8 +137,8 @@ reproduziu **59 observações** e **2.000 contextos** com decisão completa igua
 referência V3. Comandos, ambiente e evidências anteriores do CI em
 [docs/CORRECOES-REVISAO-PR4.md](docs/CORRECOES-REVISAO-PR4.md).
 O CI faz essa comparação montando as fontes somente
-para leitura no container de testes. A etapa 4 testa concorrência dos componentes internos, não do fluxo HTTP Pix
-completo nem eficácia da política. Ver [evidências da etapa 4](docs/validacao-pr4.md).
+para leitura no container de testes. A etapa 4 isolada testou componentes internos. A etapa 5 cobre o fluxo HTTP Pix;
+nenhuma dessas suítes mede eficácia da política. Ver [evidências da etapa 4](docs/validacao-pr4.md).
 
 Para um ambiente Python local opcional:
 
@@ -167,6 +182,53 @@ Nunca editar uma migration aplicada; adicionar a próxima. Não há downgrade
 automático. Mudanças futuras precisam de migration compatível e teste de
 upgrade preservando dados. Falhas impedem a API de iniciar via Compose.
 
+## Endpoints Pix
+
+Com a configuração padrão, a credencial de `demo` é `INTERNAL_TOKEN` e seu ISPB
+fictício é `00000000`. Para instituições distintas, configurar `PIX_TENANTS`
+e suas políticas no servidor; não enviar tenant no corpo. Sem dataset adicional,
+os adapters simulados retornam not_covered. Isso é incerteza, não reputação limpa.
+
+Payload oficial fictício para validação local:
+
+```bash
+python3 - <<'PY' > /tmp/pix-request.json
+import json
+payload = {
+  'id':'pix-demo-001','amount':5000,'transaction_date':'2026-10-17T12:00:00Z',
+  'source_account':{'branch':'0001','account_number':'88213','opening_date':'2025-03-02T13:00:00Z',
+                    'owner':{'document_number':'12345678909'}},
+  'destination_account':{'participant':'60701190','branch':'3675','account_number':'10442',
+                         'opening_date':'2026-10-10T12:00:00Z','owner':{'document_number':'98765432100'}},
+  'source':{'device_id':'dvc-demo','channel':'app','ip':'198.51.100.23'}
+}
+print(json.dumps(payload))
+PY
+curl -i -H 'INTERNAL-TOKEN: default_token' -H 'Content-Type: application/json' \
+  --data-binary @/tmp/pix-request.json http://127.0.0.1:3000/pix/transaction
+curl -i -H 'INTERNAL-TOKEN: default_token' http://127.0.0.1:3000/pix/transaction/pix-demo-001
+```
+
+Usar o token/porta configurados se diferentes dos padrões. Novo Pix retorna 201;
+repetir o POST devolve 200 com DTO idêntico, sem providers. Alterar qualquer campo
+relevante mantendo o ID dá 409. GET é pelo ID externo e retorna 404 enquanto houver
+apenas reserva. Falha técnica dá 503: repetir **o mesmo ID e corpo**, inclusive
+quando o commit pode ter sido concluído sem confirmação. Conflito de titularidade,
+vínculo bancário ou execução terminal local contradita pelo banco retorna
+**409 QIT002010**: reconciliar os dados institucionais antes de repetir; o hash
+original permanece reservado. Os únicos status de
+risco são `approved`, `two_factor_required` e `rejected`.
+
+O corpo tem limite incremental de 64 KiB e dinheiro permanece em centavos desde
+os bytes HTTP. Providers operam fora dos locks; o coordenador reconstrói contexto
+sob locks de origem/destino e usa até três ciclos dentro dos 3 s totais. Consulta
+inicial durável não reinicia por troca de aparelho. Eventos de 2FA/execução são
+internos e nunca reescrevem a análise original nem cadastram dispositivo.
+[Detalhes, erros, fixtures e limites](docs/api-pix.md) e
+[correções da revisão](docs/CORRECOES-REVISAO-PR5.md).
+Autenticação recusada usa somente o logger, sem acesso ao banco. O pool limitado
+Pix é separado do pool original da Base API; a referência temporal é o PostgreSQL.
+
 ## Motor de decisão puro
 
 O enunciado define três status: `approved`, `rejected` e `two_factor_required`,
@@ -178,11 +240,11 @@ O motor recebe `Context` e `Policy` imutáveis, com tempo explícito e históric
 já selecionado. Não consulta banco, rede ou relógio. Execução bancária, 2FA e
 análise são fatos separados; aprovação e sucesso de 2FA não contam como execução.
 O DTO congela os resultados em JSON independente de eventos ou políticas futuros;
-a garantia de persistência/replay será integrada nas próximas etapas.
+a etapa 5 integra a persistência e devolve esse DTO original por POST/replay/GET.
 
 A API carrega `src/antifraud/policies.json` no startup. O catálogo contém apenas
 o tenant sintético `demo`; tenant desconhecido falha sem herdar configuração.
-Isso ainda não liga tenant à credencial HTTP. Para mudar a configuração, editar
+A etapa 5 liga tenant à credencial HTTP por `PIX_TENANTS`. Para mudar políticas, editar
 o arquivo e reconstruir a imagem. O `.env.example` deixa `PIX_POLICY_FILE`
 comentado: o padrão relativo ao pacote funciona no host e no container. Se
 definir um caminho alternativo, ele deve existir no ambiente onde o processo
@@ -216,7 +278,7 @@ locks advisory de origem/destino são ordenados pelos IDs numéricos efetivos.
 GET/replay internos devolvem exatamente o DTO persistido; eventos não reescrevem
 análise, autenticação não registra device e execução não muda decisão antifraude.
 
-O coordenador futuro persiste fatos externos (cache, vínculos e execuções
+O coordenador da etapa 5 persiste fatos externos (cache, vínculos e execuções
 bancárias vinculadas) em transações curtas e, sob locks, grava com `decision_at`
 capturado por `work.now()`; o writer recusa contexto pré-lock, fato não
 persistido e segurança vencida com erros distintos.
@@ -225,7 +287,8 @@ persistido e segurança vencida com erros distintos.
 [prompt independente](docs/REVISAO-PR4.md),
 [correções da revisão](docs/CORRECOES-REVISAO-PR4.md).
 “Etapa 4” corresponde ao plano, não à PR #4 de docs já mergeada.
-Sem rotas Pix nesta etapa; o serviço interno exige o chamador autorizado.
+A etapa 4 isolada não expunha rotas Pix. A etapa 5 integra esses serviços internos
+ao HTTP; ingestão de eventos continua restrita a chamador interno confiável.
 
 ## Providers e enriquecimento
 

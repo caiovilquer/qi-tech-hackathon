@@ -109,6 +109,24 @@ engine = create_engine(
 SessionLocal = sessionmaker(bind=engine, autoflush=False)
 
 
+# Pix has its own bounded pool; the Base API retains its original wait/connect
+# behavior. Both factories use the same database, never the same live session.
+def pix_engine_for(url):
+    """Bounded Pix pool for `url`: 100 ms checkout, 1 s connect, 5 + 10 overflow.
+
+    The application binds it to DATABASE_URL below; tests bind the same
+    parameters to their disposable database instead of the shared one.
+    """
+    return create_engine(
+        url, pool_size=5, pool_recycle=600, pool_pre_ping=True, pool_timeout=.1,
+        connect_args={"options": "-c search_path=public", "connect_timeout": 1},
+    )
+
+
+pix_engine = pix_engine_for(DATABASE_URL)
+PixSessionLocal = sessionmaker(bind=pix_engine, autoflush=False)
+
+
 class Context:
     """O contexto de um trabalho: o que vale pra esta requisição, e só pra ela.
 

@@ -21,6 +21,7 @@ from antifraud.dto import PixTransactionDTO
 from antifraud.engine import evaluate
 from providers.contracts import ReputationRecord, account, ProviderIdentity
 from utils.pix_storage_codec import pack, digest, fingerprint
+from utils.pix_deadline import bind_session_deadline
 
 LEASE=timedelta(seconds=10)
 LOCK_NOT_AVAILABLE='55P03'  # PostgreSQL lock_timeout
@@ -91,7 +92,7 @@ class AnalysisWork:
             raise ValueError('Execution events are not persisted locally; ingest linked bank executions before the final transaction')
         raise ValueError('Local execution events changed; rebuild context under the held locks')
 
-    def complete(self,normalized,context,policy,*,receipt_id=None,raw_body=None):
+    def complete(self,normalized,context,policy,*,receipt_id=None,raw_body=None,source_participant=None):
         r,t=self.repository,self.ticket
         r.require_claim(t)
         if (context.pix!=self.pix or to_pix(normalized,t.tenant)!=self.pix
@@ -120,6 +121,13 @@ class AnalysisWork:
                 raise ValueError('Receipt identity does not match the original request')
         key,pix_id=uuid4(),uuid4()
         dto=PixTransactionDTO.from_decision(str(key),normalized,context,policy,decision)
+        if source_participant is not None:
+            if not isinstance(source_participant,str) or re.fullmatch(r'[0-9]{8}',source_participant) is None:
+                raise ValueError('Invalid server source participant')
+            from antifraud.dto import _freeze
+            audit=dto.audit
+            audit['source_participant']=source_participant
+            dto=PixTransactionDTO(dto.public_json,_freeze(audit))
         p=self.pix; data=normalized.canonical_payload
         values=dict(id=pix_id,tenant_id=t.tenant,external_id=p.id,payload_hash=t.payload_hash,payload=data,
             raw_body=raw_body,received_at=receipt_row['received_at'] if receipt_row else now,amount_cents=p.amount_cents,payer_branch=p.payer.branch,payer_account=p.payer.account,
@@ -152,6 +160,7 @@ class PixStorage:
     @staticmethod
     def _configure(session,lock_timeout_ms):
         # Always override a server default of SERIALIZABLE/REPEATABLE READ.
+        bind_session_deadline(session,lock_timeout_ms)
         session.connection(execution_options={'isolation_level':'READ COMMITTED'})
         session.execute(select(func.set_config('search_path','public',True)))
         session.execute(select(func.set_config('lock_timeout',f'{lock_timeout_ms}ms',True)))
@@ -194,6 +203,21 @@ class PixStorage:
                 raise Busy(f'{label} is held by a live owner; retry within the request deadline') from error
             raise
 
+    @staticmethod
+    def _winner(repository,tenant,external_id,payload_hash):
+        row=repository.local(tenant,external_id)  # INNER JOIN: a Pix alone is not an analysis.
+        if row is None:
+            return None
+        if row['payload_hash']!=payload_hash:
+            raise HashConflict('Persisted winner has another canonical payload')
+        return Replay(repository.dto(row))
+
+    def resolve_duplicate(self,tenant,external_id,payload_hash):
+        """Read the completed winner after rollback; never acquire another claim."""
+        identity(tenant,external_id,payload_hash)
+        with self.read() as r:
+            return self._winner(r,tenant,external_id,payload_hash)
+
     def claim(self,tenant,external_id,payload_hash,*,lock_timeout_ms=1000):
         identity(tenant,external_id,payload_hash)
         with self.read() as r:
@@ -204,8 +228,11 @@ class PixStorage:
             if row is not None:
                 if row['payload_hash']!=payload_hash:
                     raise HashConflict('Tenant/ID permanently reserved with another payload')
+                winner=self._winner(r,tenant,external_id,payload_hash)
+                if winner is not None:
+                    return winner
                 if row['state']=='completed':
-                    return Replay(r.get(tenant,external_id))
+                    raise ValueError('Completed reservation has no analysis')
         owner=uuid4()
         with self.coordination('Operation reservation',lock_timeout_ms=lock_timeout_ms) as r:
             values=dict(tenant_id=tenant,external_id=external_id,payload_hash=payload_hash,owner_id=owner,
@@ -226,6 +253,19 @@ class PixStorage:
                     external_id=external_id)).values(owner_id=owner,fencing_token=fence,
                         lease_until=func.clock_timestamp()+LEASE).returning(m.analysis_claim.c.lease_until)).scalar_one()
             return ClaimTicket(tenant,external_id,payload_hash,owner,fence,lease)
+
+    def release_reservations(self,ticket,initial=None):
+        """Relinquish only this owner's leases; permanent identity/hash stay intact."""
+        with self.write() as r:
+            result=r.session.execute(m.analysis_claim.update().where(scope(m.analysis_claim,
+                tenant_id=ticket.tenant,external_id=ticket.external_id,payload_hash=ticket.payload_hash,
+                owner_id=ticket.owner,fencing_token=ticket.fence,state='in_progress'))
+                .values(lease_until=func.clock_timestamp()))
+            if result.rowcount and initial is not None:
+                r.session.execute(m.source_initial.update().where(scope(m.source_initial,
+                    **initial_key(initial.payer),claim_external_id=ticket.external_id,
+                    owner_id=initial.owner,fencing_token=initial.fence,state='in_progress'))
+                    .values(lease_until=func.clock_timestamp()))
 
     def claim_initial(self,ticket,payer,*,lock_timeout_ms=1000):
         account(payer)
@@ -299,6 +339,14 @@ class PixStorage:
             r.session.execute(m.receipt.insert().values(id=key,request_id=request_id,tenant_id=tenant,
                 external_id=external_id,payload_hash=payload_hash))
         return key
+
+    def identify_receipt(self,key,tenant,external_id,payload_hash):
+        identity(tenant,external_id,payload_hash)
+        with self.write() as r:
+            result=r.session.execute(m.receipt.update().where(scope(m.receipt,id=key,tenant_id=tenant),
+                m.receipt.c.http_status.is_(None)).values(external_id=external_id,payload_hash=payload_hash))
+            if result.rowcount!=1:
+                raise ValueError('Receipt no longer belongs to this request')
 
     def finish_receipt(self,key,tenant,status,category,*,analysis_key=None):
         if type(status) is not int or not 100<=status<=599 or not isinstance(category,str) or not 1<=len(category)<=64:

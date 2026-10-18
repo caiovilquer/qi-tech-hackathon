@@ -14,6 +14,10 @@ class ProviderDataError(ValueError):
     """Invalid scope, subject, version or trusted data; never interpreted as clean."""
 
 
+class ReconciliationRequired(ProviderDataError):
+    """Known identity/link conflict needs institution repair before retry."""
+
+
 class ProviderUnavailable(Exception):
     """Transient technical failure; at most one retry is permitted."""
 

@@ -1,3 +1,4 @@
+import json
 import logging
 import sys
 
@@ -57,6 +58,17 @@ def setup_logging() -> None:
     # detalhes de conexao HTTP das bibliotecas que usamos.
     for biblioteca_falante in ["urllib3"]:
         logging.getLogger(biblioteca_falante).setLevel(logging.CRITICAL)
+
+
+def escape_for_log(value) -> str:
+    """Texto controlado pelo cliente numa única linha de log.
+
+    Caminho, query e detalhe de erro chegam decodificados; U+2028, NEL e
+    controles entrariam no arquivo como uma linha nova e falsa. O escape JSON
+    (ASCII puro) preserva o conteúdo e impede a injeção, para quem quer que
+    chame: o request_logger e os exception handlers.
+    """
+    return json.dumps(str(value), ensure_ascii=True)[1:-1]
 
 
 def get_logger(class_name: str) -> logging.Logger:

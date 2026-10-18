@@ -3,7 +3,7 @@ import time
 from fastapi import FastAPI, Request
 
 from constants import BYPASS_ENDPOINTS
-from utils.logger import get_logger
+from utils.logger import get_logger, escape_for_log
 
 
 logger = get_logger(__name__)
@@ -49,12 +49,14 @@ def register_request_logger_middleware(application: FastAPI) -> None:
         if request.url.query:
             requested_path = f"{requested_path}?{request.url.query}"
 
+        requested_path = escape_for_log(requested_path)
+        response_path = escape_for_log(request.url.path)
         started_at = time.perf_counter()
         logger.info(f"ENTROU {request.method} {requested_path}")
 
         response = await call_next(request)
 
         elapsed_ms = (time.perf_counter() - started_at) * 1000
-        logger.info(f"SAIU {response.status_code} {request.method} {request.url.path} - {elapsed_ms:.1f} ms")
+        logger.info(f"SAIU {response.status_code} {request.method} {response_path} - {elapsed_ms:.1f} ms")
 
         return response

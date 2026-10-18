@@ -1,7 +1,9 @@
 # Persistência interna Pix — etapa 4
 
-Esta etapa entrega APIs Python internas com PostgreSQL real, antes das rotas
-Pix. Não entrega POST/GET HTTP, providers remotos, execução financeira ou 2FA.
+A etapa 4 entregou APIs Python internas com PostgreSQL real, antes das rotas
+Pix. A integração HTTP posterior está em [api-pix.md](api-pix.md); os limites
+abaixo descrevem a entrega isolada da etapa 4. Não há providers remotos, execução
+financeira ou implementação do desafio 2FA.
 O enunciado oficial exige Base API e histórico; leases/fencing, eventos,
 locks e semântica de erros são decisões do guia V3, não exigências atribuídas
 indevidamente ao PDF. Política numérica permanece experimental e inalterada.
