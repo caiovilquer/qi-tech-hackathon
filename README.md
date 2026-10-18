@@ -160,13 +160,16 @@ docker compose -p pix-tests -f compose.test.yml run --rm --no-deps \
 docker compose -p pix-tests -f compose.test.yml down -v --remove-orphans
 ```
 
-Validação local em **18/10/2026**: **445 testes passaram em 40,38s**,
-PostgreSQL **16.15** e Python **3.11.17**, sem skips/xfails. Referência separada:
-**92 testes**, **59 observações** e **2.000 contextos** com Decision V3 completa
-equivalente. Um warning de depreciação pertence ao `declarative_base` original.
-Um clone limpo via origin também passou: **445 testes em 40,19s**, demo
-isolada e exemplo HTTP do README, inclusive persistência após restart.
-Detalhes e reprodução em [validacao-pr6.md](docs/validacao-pr6.md).
+Validação local em **18/10/2026**, após as correções da revisão independente:
+**448 testes passaram em 86,82s** (Linux x86_64, Docker 29.8.2), PostgreSQL **16**
+e Python **3.11** nas imagens, sem skips/xfails. São os 445 casos submetidos mais
+3 da revisão. Antes das correções, o autor registrou **445 em 40,38s** (macOS) e
+um clone limpo via origin com **445 em 40,19s**, demo isolada e exemplo HTTP do
+README, inclusive persistência após restart. Referência separada: **92 testes**,
+**59 observações** e **2.000 contextos** com Decision V3 completa equivalente.
+Um warning de depreciação pertence ao `declarative_base` original.
+Detalhes e reprodução em [validacao-pr6.md](docs/validacao-pr6.md) e
+[CORRECOES-REVISAO-PR6.md](docs/CORRECOES-REVISAO-PR6.md).
 
 O primeiro comando preserva o exit code do pytest. Não executar suítes simultâneas
 sobre o mesmo projeto Compose. A guarda exige `APP_ENV=testing`, DB `pix_test_` e
@@ -185,8 +188,9 @@ um banco aleatório, aplica migrations, sobe Uvicorn em processo filho e chama
 POST/GET reais. Ele gera fixtures normalizadas pelo contrato existente e usa os
 adapters da aplicação, sem substituir controllers. Ao terminar, encerra seus
 processos, remove somente o banco criado e os temporários, inclusive em falha
-normal de cenário. Não modifica o banco informado em `DATABASE_URL`. Uma
-interrupção abrupta do container exige o `down` da stack descartável.
+de cenário com a API viva e em SIGTERM (`docker stop`). Não modifica o banco
+informado em `DATABASE_URL`. SIGKILL do container exige o `down` da stack
+descartável. Se a API filha não subir, o erro traz a saída do Uvicorn.
 
 A saída JSON valida: primeiro Pix; troca registrada de aparelho com controle
 não registrado pelo banco; dez IDs em rajada; exposição noturna atravessando
@@ -194,11 +198,15 @@ meia-noite; destinatário adverso/restrito; replay após reinício; e 2FA seguid
 execução bancária. São **21 análises**, **6 checagens iniciais**, **1 evento de
 autenticação e 1 de execução**. O evento é inserido pelo serviço interno confiável
 do banco simulado, sem implementar autenticação 2FA ou movimentar dinheiro.
-Status/contagens são determinísticos; UUIDs e horários vêm do processo/banco.
+O Pix seguinte ao executado é datado **25h** depois: pela data da transação o
+pagamento já caberia na janela de maturidade de 24h e só continua imaturo porque
+a execução se tornou conhecida agora. Status/contagens são determinísticos;
+UUIDs e horários vêm do processo/banco.
 
 [Evidências, resultados e TDD](docs/validacao-pr6.md),
-[matriz de aceitação do guia §11.2](docs/aceitacao-pix.md) e
-[prompt de revisão independente](docs/REVISAO-PR6.md).
+[matriz de aceitação do guia §11.2](docs/aceitacao-pix.md),
+[prompt de revisão independente](docs/REVISAO-PR6.md) e
+[correções da revisão](docs/CORRECOES-REVISAO-PR6.md).
 
 ### Ambiente e persistência
 

@@ -2,12 +2,15 @@
 
 Never resets the supplied database. Only the randomly named database created here
 is migrated/dropped. Bank events use the existing trusted internal service.
+SIGTERM (docker stop, Compose shutdown) becomes SystemExit, so the API child is
+stopped and the database dropped; SIGKILL still requires `down -v` of the stack.
 """
 from contextlib import contextmanager
 from datetime import datetime, time, timedelta, timezone
 import json
 import os
 from pathlib import Path
+import signal
 import socket
 import subprocess
 import sys
@@ -55,6 +58,12 @@ def disposable_database():
             admin.dispose()
 
 
+def tail(logs, size=4000):
+    # pread never moves the file offset shared with the child's stdout/stderr.
+    length = os.fstat(logs.fileno()).st_size
+    return os.pread(logs.fileno(), size, max(0, length - size)).decode(errors='replace').strip()
+
+
 @contextmanager
 def api_process(engine, fixture):
     # Inherited bound socket eliminates the choose-port/launch race. No host port
@@ -75,7 +84,8 @@ def api_process(engine, fixture):
         try:
             until = monotonic() + 10
             while True:
-                require(worker.poll() is None and monotonic() < until, 'Demo API failed to start')
+                if worker.poll() is not None or monotonic() >= until:
+                    raise RuntimeError('Demo API failed to start:\n' + tail(logs))
                 try:
                     if requests.get(url + '/health_check', timeout=.2).status_code == 204:
                         break
@@ -169,7 +179,9 @@ def run(engine, folder):
              for i, offset in enumerate((0, .5, 3.5, 4.5))]
     adverse = payload('adverse', 500, base, adverse=True)
     two_fa = payload('two-fa', 600, base, 30000, 'unregistered-demo')
-    after = payload('after-execution', 600, base + timedelta(minutes=1), device='unregistered-demo')
+    # 25h later: older than the 24h maturity window by transaction time, so only the
+    # execution becoming known now can keep that payment immature.
+    after = payload('after-execution', 600, base + timedelta(hours=25), device='unregistered-demo')
     fixture = folder / 'fixtures.json'
     fixture.write_text(json.dumps(fixtures([first, *devices, *burst, *night, adverse, two_fa, after], now)))
     report = {'migrations': applied}
@@ -222,12 +234,16 @@ def run(engine, folder):
             unchanged = repo.get('demo', two_fa['id']).public == original
             kinds = dict(repo.session.execute(text('SELECT kind, count(*) FROM bank_event GROUP BY kind')).all())
         features = audit['features']
+        older = pix.transaction_at <= probe.transaction_at - timedelta(hours=Policy().maturity_hours)
+        require(older, 'Follow-up must be outside the maturity window by transaction time')
         require(features['paid_payee_payments'] == 1 and features['mature_payments'] == 0 and
                 features['device_state'] == 'unregistered' and unchanged, 'Execution/auth/registration were conflated')
-        require(following['status'] in ('approved', 'two_factor_required'), 'Unexpected follow-up risk status')
+        # Unregistered device (+20) and uncovered recipient (+10) under uncertainty: deterministic 2FA.
+        require(following['status'] == 'two_factor_required', 'Unexpected follow-up risk status')
         report['two_fa_execution'] = dict(auth_events=kinds['auth'], execution_events=kinds['execution'],
             payments_before=before, payments_after_auth=after_auth, payments_after_execution=features['paid_payee_payments'],
-            mature_after_execution=features['mature_payments'], device_after=features['device_state'], original_unchanged=unchanged)
+            mature_after_execution=features['mature_payments'], payment_older_than_maturity_window=older,
+            follow_up_status=following['status'], device_after=features['device_state'], original_unchanged=unchanged)
     # Restart the actual API interpreter, not merely create another application.
     # Empty fixture data would change fresh decisions; it cannot change a replay.
     fixture.write_text('{}')
@@ -244,6 +260,9 @@ def run(engine, folder):
 
 
 def main():
+    # docker stop / Compose shutdown deliver SIGTERM: raise SystemExit so the context
+    # managers still stop the API child and drop the disposable database.
+    signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(128 + signum))
     with disposable_database() as engine, TemporaryDirectory(prefix='pix-demo-') as folder:
         report = run(engine, Path(folder))
     print(json.dumps(report, indent=2, sort_keys=True))

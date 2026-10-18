@@ -207,8 +207,9 @@ regressões, falhas de providers e recuperação; revisão de segurança/configu
 prometer funcionalidade que não foi exercitada.
 
 **Entrega da etapa 6:** [matriz de aceitação](docs/aceitacao-pix.md),
-[demonstração executável](scripts/demo_pix.py), [evidências/TDD](docs/validacao-pr6.md)
-e [prompt independente](docs/REVISAO-PR6.md). O README segue o modelo oficial,
+[demonstração executável](scripts/demo_pix.py), [evidências/TDD](docs/validacao-pr6.md),
+[prompt independente](docs/REVISAO-PR6.md) e
+[correções da revisão](docs/CORRECOES-REVISAO-PR6.md). O README segue o modelo oficial,
 com integrantes confirmados, 25 regras, parâmetros, racional e comandos.
 Sem migration, alteração de contrato ou mudança da política nesta etapa.
 

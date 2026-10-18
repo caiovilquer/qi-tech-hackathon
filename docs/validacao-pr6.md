@@ -11,10 +11,12 @@ Sem deploy, merge automático ou inicialização de Git na pasta pai.
 - Runner de demonstração que inicia/reinicia Uvicorn em processos reais,
   configura os adapters existentes por arquivo de fixtures e usa POST/GET.
 - Banco PostgreSQL próprio por execução, migrations reais e limpeza em sucesso
-  e falha de cenário. Nenhum reset/migration sobre o banco fornecido ao runner.
+  falha de cenário (inclusive com a API viva) e SIGTERM. Nenhum reset/migration
+  sobre o banco fornecido ao runner.
 - Sete cenários do guia §11.3, com assertions de status, invariantes e contagens;
   resultado JSON sintetiza observações reais, sem respostas fixas de controller.
-- Testes de aceitação do runner, recusa de ambiente de uso e limpeza em falha.
+- Testes de aceitação do runner, recusa de ambiente de uso, limpeza em falha com
+  API viva e em SIGTERM, e diagnóstico de falha de startup.
 - Serviço Compose com profile `demo`, usando a imagem de testes já existente;
   CI também executa o comando documentado. Sem novo serviço de infraestrutura.
 - README no modelo oficial, nomes fornecidos pelo usuário, 25 regras com lógica,
@@ -119,10 +121,10 @@ Exit 0; saída observada:
 | Troca de aparelho | registrado approved; desconhecido two_factor_required |
 | Rajada | approved ×4; two_factor_required ×5; rejected ×1 |
 | Noite acumulada | approved; two_factor_required; two_factor_required; rejected |
-| Adverso/restrito | rejected; PAYEE_DICT_ADVERSE e PAYEE_DICT_RESTRICTED |
+| Adverso/restrito | rejected; PAYEE_DICT_ADVERSE, PAYEE_DICT_RESTRICTED e DICT_CHECK_UNAVAILABLE (remetente não coberto) |
 | Replay após encerrar/reabrir processo | 200, JSON idêntico com fixtures vazias |
 | Após autenticação | 0 pagamentos; 1 evento auth idempotente |
-| Após execução | 1 pagamento, 0 maduros; 1 evento execution |
+| Após execução | 1 pagamento, 0 maduros no Pix seguinte 25h depois (já fora da janela de 24h pela data da transação); 1 evento execution; status seguinte two_factor_required |
 | Aparelho após eventos | unregistered; observação/2FA não autorizam cadastro |
 | Análise original após eventos | inalterada |
 | Persistência | 21 Pix, 21 análises, 6 checagens iniciais |
@@ -173,3 +175,15 @@ Esta etapa fecha a aceitação técnica e a documentação planejadas. A PR aind
 requer revisão independente e correções pertinentes antes de aprovação. A
 apresentação oral, conexão a bancos/DICT reais e deploy não foram executados.
 Não há garantia de eficácia antifraude ou conformidade regulatória demonstrada.
+
+## Revisão independente e correções (18/10/2026)
+
+A revisão independente do SHA `5d23153` reproduziu suíte (**445 em 84,70 s**),
+referência (59/2.000 e 92) e demo em dois projetos, e apontou cinco achados,
+registrados com RED/GREEN em [CORRECOES-REVISAO-PR6.md](CORRECOES-REVISAO-PR6.md).
+Após as correções, build completa sem mounts em projeto novo (`pix-pr7full`):
+**448 passed, 1 warning em 86,82 s**, exit 0, sem skips/xfails (445 + 3 casos).
+Demo em projeto novo (`pix-pr7demo`, `run --build --rm demo`): exit 0, 21 análises,
+6 checagens, replay idêntico, `payment_older_than_maturity_window: true`,
+`follow_up_status: two_factor_required` e `mature_after_execution: 0`.
+Stacks `pix-pr7fix`, `pix-pr7full` e `pix-pr7demo` removidas com `down -v`.

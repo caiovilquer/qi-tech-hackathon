@@ -18,8 +18,9 @@ o estado integrado vigente está no README e na matriz final.
 1. [Prompt independente](REVISAO-PR6.md), [plano](../PLANO-IMPLEMENTACAO.md)
    e [README no modelo oficial](../README.md).
 2. [Matriz do guia §11.2 e roteiro de demo](aceitacao-pix.md),
-   [evidências/TDD](validacao-pr6.md), [runner](../scripts/demo_pix.py)
-   e [aceitação executável](../tests/integration/test_pix_delivery.py).
+   [evidências/TDD](validacao-pr6.md), [runner](../scripts/demo_pix.py),
+   [aceitação executável](../tests/integration/test_pix_delivery.py)
+   e [correções da revisão independente](CORRECOES-REVISAO-PR6.md).
 3. Guia V3 §§11.2/11.3 e PDF oficial páginas 19–25. Sem mudanças de contrato,
    política ou migrations. Providers permanecem simulados explícitos.
 
