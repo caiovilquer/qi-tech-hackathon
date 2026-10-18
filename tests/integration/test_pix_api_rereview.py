@@ -43,14 +43,14 @@ def test_conflicting_execution_identity_is_409_at_both_detection_points(api,stor
     # The same durable contradiction must not be 409 when it lands between enrichment
     # and _persist but 503 when it is already present at the first read.
     p,dto,bank=linked_history(storage,'identity-conflict','op-identity','exec-identity')
-    service=controller(storage,bank=bank);original=service._persist
+    service=controller(storage,bank=bank);original=service._persist_enrichment
     def contradicted(enriched):
         storage.ingest(event(p,dto,'failed',occurred=p.transaction_at,event_id='exec-identity'))
         return original(enriched)
-    monkeypatch.setattr(service,'_persist',contradicted)
+    monkeypatch.setattr(service,'_persist_enrichment',contradicted)
     url=api(service)
     first=post(url,payload());assert first.status_code==409 and first.json()['code']=='QIT002010',first.text
-    monkeypatch.setattr(service,'_persist',original)
+    monkeypatch.setattr(service,'_persist_enrichment',original)
     second=post(url,payload());assert second.status_code==409 and second.json()['code']=='QIT002010',second.text
     with storage.read() as repo:
         assert repo.session.execute(text('SELECT count(*) FROM bank_event')).scalar()==1

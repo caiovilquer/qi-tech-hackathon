@@ -86,7 +86,7 @@ def test_local_wall_clock_skew_does_not_break_initial_coverage(api,storage,monke
     with storage.read() as repo:
         result=repo.initial(to_pix(normalized(payload=body),'demo').payer)
         assert repo.now()-timedelta(seconds=5)<result.evidence.available_at<=repo.now()
-        assert repo.local('demo',body['id'])['decision_at']<=repo.now()
+        assert repo.analysis_row('demo',body['id'])['decision_at']<=repo.now()
 
 
 @pytest.mark.parametrize('status',[400,422])
@@ -111,20 +111,20 @@ def test_known_execution_ingested_during_enrichment_is_not_reingested(api,storag
     payment=BankPayment(IDENTITY.name,'known-op',replace(p,id='known-op'),
         ExecutionEvent('known-exec',p.payer,'known-op','executed',p.transaction_at,p.transaction_at))
     service=controller(storage,bank=FixtureBankProvider(IDENTITY,history=(payment,)))
-    original=service._persist;real_ingest=storage.ingest;duplicates=[]
+    original=service._persist_enrichment;real_ingest=storage.ingest;duplicates=[]
     def arrived(enriched):
         real_ingest(event(p,dto,occurred=p.transaction_at,event_id='known-exec'))
         return original(enriched)
     def ingested(*a,**kw):
         duplicates.append(1)
         return real_ingest(*a,**kw)
-    monkeypatch.setattr(service,'_persist',arrived)
+    monkeypatch.setattr(service,'_persist_enrichment',arrived)
     monkeypatch.setattr(storage,'ingest',ingested)
     r=post(api(service),payload())
     assert r.status_code==201 and not duplicates,r.text
     # Already present at the first read: selection.py already deduplicated this
     # on the reviewed SHA. This part is coverage, not a newly discovered bug.
-    monkeypatch.setattr(service,'_persist',original)
+    monkeypatch.setattr(service,'_persist_enrichment',original)
     assert post(api(service),payload()).status_code==201
     assert not duplicates
 
@@ -160,7 +160,7 @@ def test_pix_budget_uses_its_own_pool_and_preserves_base_wait(api,storage):
         assert post(url,body).status_code==201
         assert connections[0].execute(text('SELECT count(*) FROM pix_transaction WHERE external_id=:id'),{'id':body['id']}).scalar()==0
         with storage.read() as repo:
-            assert repo.local('demo',body['id']) is not None
+            assert repo.analysis_row('demo',body['id']) is not None
         with ThreadPoolExecutor(max_workers=1) as pool:
             pending=pool.submit(requests.get,url+'/sample_entities',headers={'INTERNAL-TOKEN':'test_token'},timeout=5)
             sleep(.25)
@@ -190,7 +190,7 @@ def test_actual_named_unique_reads_only_a_completed_winner(api,storage,monkeypat
         # Deliberately simulate a writer outside the coordinator protocol.
         # Insert before the final claim row lock so its FK can acquire KEY SHARE.
         with storage.write() as r:
-            source=r.local('demo',template.id)
+            source=r.analysis_row('demo',template.id)
             values={col.name:source[col.name] for col in m.pix.c}
             values.update(id=uuid4(),external_id=pix.id,payload_hash=n.payload_hash,
                           payload=n.canonical_payload,amount_cents=pix.amount_cents)
@@ -249,7 +249,7 @@ def test_content_length_non_numeric_is_400_at_resource_boundary(storage):
     from app import create_app
     from starlette.requests import Request
     from resources.pix import PixResource
-    from controllers.pix_api import Tenant
+    from utils.pix_tenants import Tenant
     from errors.pix import PixError
     from providers.budget import Deadline
     app=create_app();app.state.pix_controller=controller(storage)
@@ -277,8 +277,8 @@ def test_two_tenants_load_through_create_app_and_http(api,storage,tmp_path,monke
     assert a.json()['key']!=b.json()['key']
     assert post(url,body,'test_token').status_code==403
     with storage.read() as r:
-        assert r.local('demo',body['id'])['snapshot']['source_participant']=='00000000'
-        assert r.local('other',body['id'])['snapshot']['source_participant']=='11111111'
+        assert r.analysis_row('demo',body['id'])['snapshot']['source_participant']=='00000000'
+        assert r.analysis_row('other',body['id'])['snapshot']['source_participant']=='11111111'
 
 
 def test_releasing_conflict_reservations_cannot_expire_another_owner(storage):

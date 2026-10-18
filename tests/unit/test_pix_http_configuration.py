@@ -2,7 +2,7 @@
 import json
 import pytest
 from antifraud.configuration import load_policy_catalog
-from controllers.pix_api import load_tenants, resolve_tenant
+from utils.pix_tenants import load_tenants, resolve_tenant
 from providers.configuration import load_fixture_providers
 from providers.contracts import ProviderDataError, ProviderIdentity
 from tests.unit.test_pix_provider_selection import security_record, reputation_record

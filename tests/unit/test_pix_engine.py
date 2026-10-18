@@ -159,8 +159,8 @@ class EngineTests(PixFixture, unittest.TestCase):
         # 24h30 on the civil clock, but only 23h30 elapsed after the DST jump.
         context = Context(pix, t, history=(history(prior),))
         features = build_features(context, self.policy)
-        self.assertEqual(features.attempts_sum, 2 * pix.amount_cents)
-        self.assertEqual(len(features.day), 1)
+        self.assertEqual(features.day_amount_cents, 2 * pix.amount_cents)
+        self.assertEqual(len(features.day_attempts), 1)
 
     def test_engine_has_no_io_or_global_clock_and_does_not_mutate_inputs(self):
         original = deepcopy(self.context)

@@ -1,6 +1,6 @@
-"""Registered pure criteria. Conditions live in code; weights have a schema.
+"""Registered pure criteria. Conditions live in code; point weights have a schema.
 
-Hard rejection and 2FA floors are fixed here, not switches in tenant JSON.
+Hard rejection and 2FA floors are fixed here, never switches in tenant JSON.
 """
 from __future__ import annotations
 from dataclasses import dataclass
@@ -28,165 +28,168 @@ class Criterion:
     def parameter_schema(self):
         return {"type": "object", "additionalProperties": False,
                 "required": [name for name, _ in self.defaults],
-                "properties": {name: {"type": "integer", "minimum": 0}
-                               for name, _ in self.defaults}}
+                "properties": {name: {"type": "integer", "minimum": 0} for name, _ in self.defaults}}
 
     def evaluate(self, features: Features, policy: Policy):
-        parameters = dict(policy.parameters_for(self.code))
-        result = self.evaluator(features, policy, parameters)
+        params = dict(policy.parameters_for(self.code))
+        result = self.evaluator(features, policy, params)
         if result is None:
             return ()
         points, floor = result
         return (Reason(self.code, self.family, points, floor),)
 
 
-def night_soft(f, p, args):
-    if f.ns is not None and f.p.payer_pf and f.p.payee_pf and not f.p.same_holder:
-        if f.night_soft_exposure + f.p.amount_cents > p.night_soft_cents:
+def night_soft(features, policy, params):
+    pix = features.pix
+    if features.night_started_at is not None and pix.payer_pf and pix.payee_pf and not pix.same_holder:
+        if features.night_soft_exposure + pix.amount_cents > policy.night_soft_cents:
             return 0, TWO_FA
 
 
-def night_hard(f, p, args):
-    if f.ns is not None and f.qualifies:
-        if f.night_hard_exposure + f.p.amount_cents > p.night_hard_cents:
+def night_hard(features, policy, params):
+    if features.night_started_at is not None and features.night_qualifies:
+        if features.night_hard_exposure + features.pix.amount_cents > policy.night_hard_cents:
             return 0, REJECTED
 
 
-def low_history(f, p, args):
-    if not f.general and not f.payee_profile:
-        factor = 1 if f.p.payer_pf else p.pj_factor
-        if f.p.amount_cents > p.low_history_cents[1] * factor:
-            return args["high_points"], None
-        if f.p.amount_cents > p.low_history_cents[0] * factor:
-            return args["low_points"], None
+def low_history(features, policy, params):
+    if not features.general_profile and not features.payee_profile:
+        factor = 1 if features.pix.payer_pf else policy.pj_factor
+        if features.pix.amount_cents > policy.low_history_cents[1] * factor:
+            return params["high_points"], None
+        if features.pix.amount_cents > policy.low_history_cents[0] * factor:
+            return params["low_points"], None
 
 
-def velocity(f, p, args, *, receipt=False):
-    soft, hard = p.velocity_pf if f.p.payer_pf else p.velocity_pj
-    count = f.receipt_count if receipt else f.count
+def velocity(features, policy, params, *, receipt=False):
+    soft, hard = policy.velocity_pf if features.pix.payer_pf else policy.velocity_pj
+    count = features.receipt_count if receipt else features.velocity_count
     if count >= soft:
-        points = args["points"]
-        if receipt and f.count >= soft:
+        points = params["points"]
+        if receipt and features.velocity_count >= soft:
             # Both clocks describe one signal, including asymmetric tenant weights.
-            points = max(0, points - dict(p.parameters_for("VELOCITY_BURST"))["points"])
+            points = max(0, points - dict(policy.parameters_for("VELOCITY_BURST"))["points"])
         return points, REJECTED if count >= hard else None
 
 
-def daily_amount(f, p, args):
-    if len(f.day) + 1 >= 2:
-        threshold = (p.daily_profile_multiple * f.daily_median if f.general
-                     else p.daily_cents * (1 if f.p.payer_pf else p.pj_factor))
-        if f.attempts_sum > threshold:
-            return args["points"], None
+def daily_amount(features, policy, params):
+    if len(features.day_attempts) + 1 >= 2:
+        threshold = (policy.daily_profile_multiple * features.daily_median if features.general_profile
+                     else policy.daily_cents * (1 if features.pix.payer_pf else policy.pj_factor))
+        if features.day_amount_cents > threshold:
+            return params["points"], None
 
 
-def structuring(f, p, args):
-    for limit in p.structuring_limits:
-        if f.structuring_count(limit, p.structuring_percent) >= p.structuring_count:
-            return args["points"], None
+def structuring(features, policy, params):
+    for limit in policy.structuring_limits:
+        if features.structuring_count(limit, policy.structuring_percent) >= policy.structuring_count:
+            return params["points"], None
 
 
-def amount_profile(f, p, args):
-    amount = f.profile_median
-    if amount is not None:
-        if f.p.amount_cents > p.amount_profile_multiples[1] * amount:
-            return args["high_points"], None
-        if f.p.amount_cents > p.amount_profile_multiples[0] * amount:
-            return args["low_points"], None
+def amount_profile(features, policy, params):
+    reference = features.profile_median
+    if reference is not None:
+        if features.pix.amount_cents > policy.amount_profile_multiples[1] * reference:
+            return params["high_points"], None
+        if features.pix.amount_cents > policy.amount_profile_multiples[0] * reference:
+            return params["low_points"], None
 
 
-def recent_account(f, p, args):
-    if f.age < timedelta(days=p.recent_account_days[0]):
-        return args["young_points"], None
-    if f.age < timedelta(days=p.recent_account_days[1]):
-        return args["recent_points"], None
+def recent_account(features, policy, params):
+    if features.destination_age < timedelta(days=policy.recent_account_days[0]):
+        return params["young_points"], None
+    if features.destination_age < timedelta(days=policy.recent_account_days[1]):
+        return params["recent_points"], None
 
 
-def new_payee(f, p, args):
-    if f.general and not f.paid_payee and not f.p.same_holder:
-        return args["points"], None
+def new_payee(features, policy, params):
+    if features.general_profile and not features.paid_payee and not features.pix.same_holder:
+        return params["points"], None
 
 
-def self_transfer(f, p, args):
-    if f.p.same_holder and f.age < timedelta(days=p.recent_account_days[0]):
-        return args["points"], None
+def self_transfer(features, policy, params):
+    if features.pix.same_holder and features.destination_age < timedelta(days=policy.recent_account_days[0]):
+        return params["points"], None
 
 
-def fan_in(f, p, args):
-    if (f.age < timedelta(days=p.recent_account_days[1])
-            and f.fan_in_payers >= p.fan_in_payers
-            and (f.p.amount_cents >= p.fan_in_current_cents
-                 or f.fan_in_cents >= p.fan_in_sum_cents)):
-        return args["pf_points"] if f.p.payee_pf else args["pj_points"], None
+def fan_in(features, policy, params):
+    if (features.destination_age < timedelta(days=policy.recent_account_days[1])
+            and features.fan_in_payers >= policy.fan_in_payers
+            and (features.pix.amount_cents >= policy.fan_in_current_cents
+                 or features.fan_in_cents >= policy.fan_in_sum_cents)):
+        return params["pf_points"] if features.pix.payee_pf else params["pj_points"], None
 
 
-def changed_unknown(f):
-    return f.device == "unknown" and any(h.pix.device_id != f.p.device_id for h in f.mine)
+def changed_unknown_device(features):
+    return features.device_state == "unknown" and any(
+        analysis.pix.device_id != features.pix.device_id for analysis in features.payer_history)
 
 
-def device_revoked(f, p, args):
-    if f.device == "revoked":
+def device_revoked(features, policy, params):
+    if features.device_state == "revoked":
         return 0, REJECTED
 
 
-def unregistered(f, p, args):
-    if f.device == "unregistered":
-        return args["points"], None
+def unregistered(features, policy, params):
+    if features.device_state == "unregistered":
+        return params["points"], None
 
 
-def device_change(f, p, args):
-    if changed_unknown(f):
-        return args["points"], None
+def device_change(features, policy, params):
+    if changed_unknown_device(features):
+        return params["points"], None
 
 
-def device_limit(f, p, args):
-    if f.device == "unregistered" or changed_unknown(f):
-        if (f.p.amount_cents > p.device_single_cents
-                or f.device == "unregistered" and f.device_day_exposure > p.device_day_cents):
+def device_limit(features, policy, params):
+    if features.device_state == "unregistered" or changed_unknown_device(features):
+        if (features.pix.amount_cents > policy.device_single_cents
+                or features.device_state == "unregistered" and features.device_day_exposure > policy.device_day_cents):
             return 0, TWO_FA
 
 
-def recovery(f, p, args):
-    sec = f.context.security
-    if sec is not None and any(f.now - timedelta(hours=24) < occurred <= f.now
-                              and available <= f.now for occurred, available in sec.recoveries):
-        return args["points"], None
+def recovery(features, policy, params):
+    security = features.context.security
+    if security is not None and any(features.now - timedelta(hours=24) < occurred <= features.now
+                                    and available <= features.now for occurred, available in security.recoveries):
+        return params["points"], None
 
 
-def bank_restricted(f, p, args, *, role):
-    sec = f.context.security
-    if sec is not None and any(r.applies(f.p, role, f.now) for r in sec.restrictions):
+def bank_restricted(features, policy, params, *, role):
+    security = features.context.security
+    if security is not None and any(restriction.applies(features.pix, role, features.now)
+                                    for restriction in security.restrictions):
         return 0, REJECTED
 
 
-def bank_limit(f, p, args):
-    if f.sec_valid and f.context.security.bank_limit_exceeded:
+def bank_limit(features, policy, params):
+    if features.security_valid and features.context.security.bank_limit_exceeded:
         return 0, REJECTED
 
 
-def dict_adverse(f, p, args, *, role):
-    evidence = dict(f.context.dict_evidence)
+def dict_adverse(features, policy, params, *, role):
+    evidence = dict(features.context.dict_evidence)
     item = evidence.get(role)
-    if item is not None and item.valid(f.now) and (item.fraud_count >= 1 or item.open_reports >= 1):
+    if item is not None and item.valid(features.now) and (item.fraud_count >= 1 or item.open_reports >= 1):
         payer = evidence.get("payer")
         duplicate = (role == "payee" and payer is not None and payer.document == item.document
-                     and payer.valid(f.now) and (payer.fraud_count >= 1 or payer.open_reports >= 1))
-        points = args["points"]
+                     and payer.valid(features.now) and (payer.fraud_count >= 1 or payer.open_reports >= 1))
+        points = params["points"]
         if duplicate:
-            points = max(0, points - dict(p.parameters_for("PAYER_DICT_ADVERSE"))["points"])
+            points = max(0, points - dict(policy.parameters_for("PAYER_DICT_ADVERSE"))["points"])
         return points, None
 
 
-def dict_restricted(f, p, args, *, role):
-    item = dict(f.context.dict_evidence).get(role)
-    if item is not None and item.valid(f.now) and any(r.applies(f.p, role, f.now) for r in item.restrictions):
+def dict_restricted(features, policy, params, *, role):
+    item = dict(features.context.dict_evidence).get(role)
+    if item is not None and item.valid(features.now) and any(
+            restriction.applies(features.pix, role, features.now) for restriction in item.restrictions):
         return 0, REJECTED
 
 
-def dict_unavailable(f, p, args):
-    evidence = dict(f.context.dict_evidence)
-    if any(role not in evidence or not evidence[role].valid(f.now) for role in f.context.dict_queried):
-        return args["points"], None
+def dict_unavailable(features, policy, params):
+    evidence = dict(features.context.dict_evidence)
+    if any(role not in evidence or not evidence[role].valid(features.now) for role in features.context.dict_queried):
+        return params["points"], None
 
 
 # Order is part of deterministic auditing; no tenant may remove a criterion.

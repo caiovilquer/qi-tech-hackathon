@@ -24,13 +24,7 @@ class SampleEntityFinalStatus(QIException):
 
 
 class InvalidDocumentNumber(QIException):
-    """O CPF tem o formato certo e não existe.
-
-    422, e não 400, de propósito: 400 quer dizer "não consegui ler o seu
-    pedido". Aqui a API leu, entendeu, e o valor é que não pode existir —
-    os dois últimos dígitos não batem com a conta. A diferença está
-    explicada em src/utils/document_number.py.
-    """
+    """Well-formed CPF whose check digits do not match: 422, the request was understood."""
 
     code = "QIT001003"
 
@@ -43,13 +37,6 @@ class InvalidDocumentNumber(QIException):
 
 
 class DuplicatedDocumentNumber(QIException):
-    """Já existe um cadastro com este CPF.
-
-    409 Conflict: o pedido está correto em si, e o que impede é o que já
-    está no banco. É a mesma família do SampleEntityFinalStatus aqui em
-    cima — conflito com o que já existe, não erro de quem pediu.
-    """
-
     code = "QIT001004"
 
     def __init__(self, document_number) -> None:
@@ -83,13 +70,7 @@ class UnderageSampleEntity(QIException):
 
 
 class InvalidBirthdate(QIException):
-    """A data tem o formato certo e não existe no calendário.
-
-    Existe porque o `pattern` do schema sabe contar dígitos, não dias:
-    "2025-02-30" e "9999-99-99" passam pelo regex e morrem no
-    `date.fromisoformat`. Sem esta classe, esse ValueError virava 500 —
-    a API culpando a si mesma por um erro de quem chamou.
-    """
+    """Well-formed date that does not exist in the calendar (the schema pattern cannot tell)."""
 
     code = "QIT001007"
 

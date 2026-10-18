@@ -109,6 +109,16 @@ usados ficam congelados em `snapshot.bank_payments`, além de seus identificador
 nas features. Dados fora da janela comportamental não exigem carregar análises
 locais antigas apenas para descartá-las no cálculo; decisões puras são preservadas.
 
+## Logs
+
+Cada requisição recebe `X-Request-ID` (aceito do cliente quando bem formado) e todas as
+linhas de log dela carregam esse id entre colchetes. O formato é `evento chave=valor`,
+com texto do cliente escapado. Eventos Pix: `pix.analysis.completed` (status, key,
+score, motivos, ciclos e `elapsed_ms` de cada 201/200), `pix.analysis.error` (status e
+código de cada recusa), `pix.analysis.budget_exceeded`/`reconciliation_required` e
+`provider.unavailable` em WARNING, e falhas técnicas em ERROR com traceback. A tabela
+completa está no README, seção "Logs e observabilidade".
+
 ## Deadline e falhas
 
 O contexto e os recebimentos sintéticos do Enricher usam `DatabaseClock`: UTC

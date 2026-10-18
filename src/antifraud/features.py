@@ -4,80 +4,82 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from fractions import Fraction
 from zoneinfo import ZoneInfo
-from .context import Context, Pix, HistoricalAnalysis, ExecutionEvent, BankPayment, REJECTED, TWO_FA, supported_time
+from .context import Context, HistoricalAnalysis, ExecutionEvent, BankPayment, REJECTED, TWO_FA, supported_time
 from .policy import Policy
 
 TZ = ZoneInfo("America/Sao_Paulo")
 FAN_IN_WINDOW = timedelta(hours=24)  # attempts to one destination that feed MULE_FAN_IN
 
+
 def median(values: list[int]) -> Fraction:
     ordered = sorted(values)
-    n = len(ordered)
-    return Fraction(ordered[n // 2]) if n % 2 else Fraction(ordered[n // 2 - 1] + ordered[n // 2], 2)
+    count = len(ordered)
+    return Fraction(ordered[count // 2]) if count % 2 else Fraction(ordered[count // 2 - 1] + ordered[count // 2], 2)
 
 
-def night_start(t: datetime, policy: Policy) -> datetime | None:
-    t = t.astimezone(TZ)
-    if t.hour >= policy.night_start_hour:
-        return t.replace(hour=policy.night_start_hour, minute=0, second=0, microsecond=0)
-    if t.hour < policy.night_end_hour:
-        return (t - timedelta(days=1)).replace(hour=policy.night_start_hour, minute=0, second=0, microsecond=0)
+def night_start(transaction_at: datetime, policy: Policy) -> datetime | None:
+    local_time = transaction_at.astimezone(TZ)
+    if local_time.hour >= policy.night_start_hour:
+        return local_time.replace(hour=policy.night_start_hour, minute=0, second=0, microsecond=0)
+    if local_time.hour < policy.night_end_hour:
+        return (local_time - timedelta(days=1)).replace(hour=policy.night_start_hour, minute=0, second=0, microsecond=0)
     return None
 
 
-def latest_execution(h: HistoricalAnalysis, c: Context) -> ExecutionEvent | None:
-    events = [e for e in c.execution_events if e.payer == h.pix.payer and e.pix_id == h.pix.id
-              and e.occurred_at <= c.decision_at and e.available_at <= c.decision_at]
-    return max(events, key=lambda e: (e.occurred_at, e.available_at, e.event_id), default=None)
+def latest_execution(analysis: HistoricalAnalysis, context: Context) -> ExecutionEvent | None:
+    events = [event for event in context.execution_events
+              if event.payer == analysis.pix.payer and event.pix_id == analysis.pix.id
+              and event.occurred_at <= context.decision_at and event.available_at <= context.decision_at]
+    return max(events, key=lambda event: (event.occurred_at, event.available_at, event.event_id), default=None)
 
 
-def effective(h: HistoricalAnalysis, c: Context) -> bool:
-    event = latest_execution(h, c)
+def effective(analysis: HistoricalAnalysis, context: Context) -> bool:
+    event = latest_execution(analysis, context)
     return event is not None and event.state == "executed"
 
 
-def exposure(h: HistoricalAnalysis, c: Context) -> bool:
-    event = latest_execution(h, c)
+def exposure(analysis: HistoricalAnalysis, context: Context) -> bool:
+    event = latest_execution(analysis, context)
     if event is not None:
         if event.state in ("failed", "cancelled"):
             return False
         if event.state == "executed":
             return True
-    if h.status == REJECTED:
+    if analysis.status == REJECTED:
         return False
-    terminal_failure = any(e.payer == h.pix.payer and e.pix_id == h.pix.id
-        and h.challenge_id is not None and e.challenge_id == h.challenge_id
-        and e.state == "failed" and e.terminal and e.occurred_at <= c.decision_at
-        and e.available_at <= c.decision_at for e in c.auth_events)
-    return not (h.status == TWO_FA and terminal_failure)
+    terminal_failure = any(auth.payer == analysis.pix.payer and auth.pix_id == analysis.pix.id
+        and analysis.challenge_id is not None and auth.challenge_id == analysis.challenge_id
+        and auth.state == "failed" and auth.terminal and auth.occurred_at <= context.decision_at
+        and auth.available_at <= context.decision_at for auth in context.auth_events)
+    return not (analysis.status == TWO_FA and terminal_failure)
 
 
 @dataclass(frozen=True)
 class Features:
     context: Context
     history: tuple[HistoricalAnalysis, ...]
-    mine: tuple[HistoricalAnalysis, ...]
+    payer_history: tuple[HistoricalAnalysis, ...]
     mature: tuple[HistoricalAnalysis | BankPayment, ...]
     paid_payee: tuple[HistoricalAnalysis | BankPayment, ...]
     mature_payee: tuple[HistoricalAnalysis | BankPayment, ...]
-    general: bool
+    general_profile: bool
     payee_profile: bool
-    established: bool
-    device: str
-    trusted: bool
-    age: timedelta
-    qualifies: bool
-    day: tuple[HistoricalAnalysis, ...]
-    attempts_sum: int
-    exposed: tuple[HistoricalAnalysis, ...]
-    ns: datetime | None
-    count: int
+    recipient_established: bool
+    device_state: str
+    trusted_beneficiary: bool
+    destination_age: timedelta
+    night_qualifies: bool
+    day_attempts: tuple[HistoricalAnalysis, ...]
+    day_amount_cents: int
+    exposures: tuple[HistoricalAnalysis, ...]
+    night_started_at: datetime | None
+    velocity_count: int
     receipt_count: int
-    sec_valid: bool
+    security_valid: bool
     bank_payments: tuple[BankPayment, ...]
 
     @property
-    def p(self):
+    def pix(self):
         return self.context.pix
 
     @property
@@ -85,96 +87,104 @@ class Features:
         return self.context.decision_at.astimezone(timezone.utc)
 
     @property
-    def t(self):
-        return self.p.transaction_at.astimezone(timezone.utc)
+    def transaction_at(self):
+        return self.pix.transaction_at.astimezone(timezone.utc)
 
     @property
     def profile_median(self):
-        reference = self.mature_payee if self.payee_profile else self.mature if self.general else ()
-        return median([h.pix.amount_cents for h in reference]) if reference else None
+        reference = self.mature_payee if self.payee_profile else self.mature if self.general_profile else ()
+        return median([payment.pix.amount_cents for payment in reference]) if reference else None
 
     @property
     def daily_median(self):
-        daily = {}
-        for h in self.mature:
-            day = h.pix.transaction_at.astimezone(TZ).date()
-            daily[day] = daily.get(day, 0) + h.pix.amount_cents
-        return median(list(daily.values())) if daily else None
+        daily_totals = {}
+        for payment in self.mature:
+            day = payment.pix.transaction_at.astimezone(TZ).date()
+            daily_totals[day] = daily_totals.get(day, 0) + payment.pix.amount_cents
+        return median(list(daily_totals.values())) if daily_totals else None
 
     def structuring_count(self, limit, percent):
         def in_band(amount):
             return percent * limit <= amount * 100 <= limit * 100
-        return (1 + sum(in_band(h.pix.amount_cents) for h in self.day)) if in_band(self.p.amount_cents) else 0
+        if not in_band(self.pix.amount_cents):
+            return 0
+        return 1 + sum(in_band(attempt.pix.amount_cents) for attempt in self.day_attempts)
 
     @property
     def incoming(self):
-        return tuple(h for h in self.history if h.pix.destination == self.p.destination
-                     and self.t - FAN_IN_WINDOW < h.pix.transaction_at <= self.t)
+        return tuple(analysis for analysis in self.history if analysis.pix.destination == self.pix.destination
+                     and self.transaction_at - FAN_IN_WINDOW < analysis.pix.transaction_at <= self.transaction_at)
 
     @property
     def fan_in_payers(self):
-        return len({h.pix.payer for h in self.incoming} | {self.p.payer})
+        return len({analysis.pix.payer for analysis in self.incoming} | {self.pix.payer})
 
     @property
     def fan_in_cents(self):
-        return sum(h.pix.amount_cents for h in self.incoming) + self.p.amount_cents
+        return sum(analysis.pix.amount_cents for analysis in self.incoming) + self.pix.amount_cents
 
     @property
     def night_soft_exposure(self):
-        return sum(h.pix.amount_cents for h in self.exposed if self.ns is not None
-                   and h.pix.transaction_at >= self.ns and h.pix.payee_pf and not h.pix.same_holder)
+        return sum(analysis.pix.amount_cents for analysis in self.exposures if self.night_started_at is not None
+                   and analysis.pix.transaction_at >= self.night_started_at and analysis.pix.payee_pf
+                   and not analysis.pix.same_holder)
 
     @property
     def night_hard_exposure(self):
-        return sum(h.pix.amount_cents for h in self.exposed if self.ns is not None
-                   and h.pix.transaction_at >= self.ns and h.night_qualifies)
+        return sum(analysis.pix.amount_cents for analysis in self.exposures if self.night_started_at is not None
+                   and analysis.pix.transaction_at >= self.night_started_at and analysis.night_qualifies)
 
     @property
     def device_day_exposure(self):
-        return self.p.amount_cents + sum(h.pix.amount_cents for h in self.exposed
-            if h.pix.transaction_at.astimezone(TZ).date() == self.t.astimezone(TZ).date()
-            and h.device_state == "unregistered")
+        local_day = self.transaction_at.astimezone(TZ).date()
+        return self.pix.amount_cents + sum(analysis.pix.amount_cents for analysis in self.exposures
+            if analysis.pix.transaction_at.astimezone(TZ).date() == local_day and analysis.device_state == "unregistered")
 
 
-def build_features(c: Context, policy: Policy) -> Features:
-    p = c.pix
-    t, now = p.transaction_at.astimezone(timezone.utc), c.decision_at.astimezone(timezone.utc)
+def build_features(context: Context, policy: Policy) -> Features:
+    pix = context.pix
+    transaction_at = pix.transaction_at.astimezone(timezone.utc)
+    now = context.decision_at.astimezone(timezone.utc)
     supported_time(now, "decision_at")
-    history = [h for h in c.history if h.pix.payer.tenant == p.payer.tenant
-               and h.decision_at <= now and h.pix.transaction_at <= t
-               and h.pix.transaction_at > t - timedelta(days=policy.history_days)
-               and (h.pix.payer, h.pix.id) != (p.payer, p.id)]
-    mine = [h for h in history if h.pix.payer == p.payer]
-    executed = [h for h in mine if effective(h, c)]
-    imported = [h for h in c.bank_payments if h.pix.payer == p.payer
-                and h.pix.id != p.id and t-timedelta(days=policy.history_days) < h.pix.transaction_at <= t
-                and h.execution.occurred_at <= now and h.execution.available_at <= now]
-    maturity = t - timedelta(hours=policy.maturity_hours)
-    mature = [h for h in executed if h.pix.transaction_at <= maturity
-              and latest_execution(h, c).occurred_at <= maturity]
-    mature.extend(h for h in imported if h.pix.transaction_at <= maturity and h.execution.occurred_at <= maturity)
-    general = (len(mature) >= policy.general_min_payments and
-               len({h.pix.transaction_at.astimezone(TZ).date() for h in mature}) >= policy.general_min_days)
-    paid_payee = [h for h in executed + imported if h.pix.destination == p.destination]
-    mature_payee = [h for h in mature if h.pix.destination == p.destination]
+    history = [analysis for analysis in context.history if analysis.pix.payer.tenant == pix.payer.tenant
+               and analysis.decision_at <= now and analysis.pix.transaction_at <= transaction_at
+               and analysis.pix.transaction_at > transaction_at - timedelta(days=policy.history_days)
+               and (analysis.pix.payer, analysis.pix.id) != (pix.payer, pix.id)]
+    payer_history = [analysis for analysis in history if analysis.pix.payer == pix.payer]
+    executed = [analysis for analysis in payer_history if effective(analysis, context)]
+    imported = [payment for payment in context.bank_payments if payment.pix.payer == pix.payer
+                and payment.pix.id != pix.id
+                and transaction_at - timedelta(days=policy.history_days) < payment.pix.transaction_at <= transaction_at
+                and payment.execution.occurred_at <= now and payment.execution.available_at <= now]
+    maturity = transaction_at - timedelta(hours=policy.maturity_hours)
+    mature = [analysis for analysis in executed if analysis.pix.transaction_at <= maturity
+              and latest_execution(analysis, context).occurred_at <= maturity]
+    mature.extend(payment for payment in imported
+                  if payment.pix.transaction_at <= maturity and payment.execution.occurred_at <= maturity)
+    general_profile = (len(mature) >= policy.general_min_payments and
+                       len({payment.pix.transaction_at.astimezone(TZ).date() for payment in mature}) >= policy.general_min_days)
+    paid_payee = [payment for payment in executed + imported if payment.pix.destination == pix.destination]
+    mature_payee = [payment for payment in mature if payment.pix.destination == pix.destination]
     payee_profile = len(mature_payee) >= policy.payee_min_payments
-    established = bool(mature_payee)
-    sec = c.security
-    sec_valid = sec is not None and sec.valid(now)
-    device = sec.device_state if sec_valid else "unknown"
-    trusted = bool(sec_valid and sec.trusted_beneficiary)
-    age = t - p.destination_opened_at
-    qualifies = p.payer_pf and ((p.payee_pf and not p.same_holder and not trusted)
-                               or (p.same_holder and age < timedelta(days=policy.recent_account_days[0])))
-    day = [h for h in mine if t - timedelta(hours=24) < h.pix.transaction_at <= t]
-    attempts_sum = sum(h.pix.amount_cents for h in day) + p.amount_cents
-    exposed = [h for h in mine if exposure(h, c)]
-    ns = night_start(t, policy)
-    count = 1 + sum(t - timedelta(minutes=policy.velocity_minutes) < h.pix.transaction_at <= t for h in mine)
-    receipt_count = 1 + sum(h.pix.payer == p.payer and
-        (h.pix.payer, h.pix.id) != (p.payer, p.id) and
-        now - timedelta(minutes=policy.velocity_minutes) < h.decision_at <= now for h in c.history)
-    return Features(c, tuple(history), tuple(mine), tuple(mature), tuple(paid_payee),
-                    tuple(mature_payee), general, payee_profile, established, device,
-                    trusted, age, qualifies, tuple(day), attempts_sum, tuple(exposed),
-                    ns, count, receipt_count, sec_valid, tuple(imported))
+    recipient_established = bool(mature_payee)
+    security = context.security
+    security_valid = security is not None and security.valid(now)
+    device_state = security.device_state if security_valid else "unknown"
+    trusted_beneficiary = bool(security_valid and security.trusted_beneficiary)
+    destination_age = transaction_at - pix.destination_opened_at
+    night_qualifies = pix.payer_pf and ((pix.payee_pf and not pix.same_holder and not trusted_beneficiary)
+                                        or (pix.same_holder and destination_age < timedelta(days=policy.recent_account_days[0])))
+    day_attempts = [analysis for analysis in payer_history
+                    if transaction_at - timedelta(hours=24) < analysis.pix.transaction_at <= transaction_at]
+    day_amount_cents = sum(analysis.pix.amount_cents for analysis in day_attempts) + pix.amount_cents
+    exposures = [analysis for analysis in payer_history if exposure(analysis, context)]
+    night_started_at = night_start(transaction_at, policy)
+    velocity_count = 1 + sum(transaction_at - timedelta(minutes=policy.velocity_minutes) < analysis.pix.transaction_at <= transaction_at
+                             for analysis in payer_history)
+    receipt_count = 1 + sum(analysis.pix.payer == pix.payer and (analysis.pix.payer, analysis.pix.id) != (pix.payer, pix.id)
+                            and now - timedelta(minutes=policy.velocity_minutes) < analysis.decision_at <= now
+                            for analysis in context.history)
+    return Features(context, tuple(history), tuple(payer_history), tuple(mature), tuple(paid_payee), tuple(mature_payee),
+                    general_profile, payee_profile, recipient_established, device_state, trusted_beneficiary,
+                    destination_age, night_qualifies, tuple(day_attempts), day_amount_cents, tuple(exposures),
+                    night_started_at, velocity_count, receipt_count, security_valid, tuple(imported))

@@ -230,7 +230,7 @@ def run(engine, folder):
         require(storage.ingest(execution) == 'created', 'Execution event not persisted')
         following = post(url, after)
         with storage.read() as repo:
-            audit = repo.local('demo', after['id'])['snapshot']
+            audit = repo.analysis_row('demo', after['id'])['snapshot']
             unchanged = repo.get('demo', two_fa['id']).public == original
             kinds = dict(repo.session.execute(text('SELECT kind, count(*) FROM bank_event GROUP BY kind')).all())
         features = audit['features']

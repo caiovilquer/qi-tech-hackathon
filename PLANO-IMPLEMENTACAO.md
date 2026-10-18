@@ -213,6 +213,12 @@ prometer funcionalidade que não foi exercitada.
 com integrantes confirmados, 25 regras, parâmetros, racional e comandos.
 Sem migration, alteração de contrato ou mudança da política nesta etapa.
 
+**Revisão final de legibilidade e observabilidade:** logs estruturados por evento com
+request id, catálogo de erros Pix com título/tradução por código, SQL concentrado no
+`PixRepository`, tenant resolvido em `utils/pix_tenants.py`, nomes descritivos no motor e
+no coordenador e remoção dos comentários didáticos da base. Sem mudança de contrato,
+política, migrations ou dependências ([registro](docs/revisao-final-observabilidade.md)).
+
 ## Gate de cada etapa
 
 Correções e comportamentos novos seguem TDD: teste reproduzindo a falha,
