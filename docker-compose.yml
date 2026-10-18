@@ -37,6 +37,7 @@ services:
       APP_ENV: ${APP_ENV:-local}
       SERVICE_NAME: ${SERVICE_NAME:-pix-antifraud}
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-default_token}
+      PIX_POLICY_FILE: ${PIX_POLICY_FILE:-/app/antifraud/policies.json}
       BANKSLIP_API_URL: ${BANKSLIP_API_URL:-http://localhost:8080}
       BANKSLIP_API_INTERNAL_TOKEN: ${BANKSLIP_API_INTERNAL_TOKEN:-default_token}
       BANKSLIP_API_TIMEOUT: ${BANKSLIP_API_TIMEOUT:-5}

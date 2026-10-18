@@ -1,8 +1,9 @@
 # Plano de implementação: Antifraude Pix
 
 Referência vigente: guia V3 de 17/10/2026, política `pix-experimental-v3`.
-Estado: PR 1 implementada, aguardando revisão independente. As demais etapas aguardam revisão e aprovação
-explícita da etapa anterior. Não há API Pix entregue nesta primeira etapa.
+Estado: PR 1 aprovada e mergeada em `c35005af40590fe9b60023ab29ac62d85bb9ff0f`.
+PR 2 implementada em `feat/pix-engine`, para revisão independente. As próximas etapas
+aguardam aprovação explícita. Ainda não há endpoints Pix ou persistência de análises.
 
 ## Fontes e precedência
 
@@ -93,8 +94,8 @@ UTC, hash de todos os campos, centavos desde bytes, rejeição de duplicatas,
 NaN, NUL/surrogates; famílias/tetos/pisos; `C_pre` usa mesmas regras locais;
 configuração inválida falha no startup. Motor não acessa rede, banco ou relógio.
 
-**Testes:** portar os 92 testes de referência com rastreabilidade, separar
-orquestração futura; testes puros de políticas/configuração, imutabilidade,
+**Testes:** rastrear os 92 testes de referência: portar os 36 de contrato e
+36 de política, mantendo os 20 de orquestração como referência das etapas futuras; testes puros de políticas/configuração, imutabilidade,
 fronteiras e temporalidade. **Riscos:** copiar suposições do simulador;
 perder precisão antes da validação; divergência entre score preliminar/final.
 
@@ -181,10 +182,17 @@ prometer funcionalidade que não foi exercitada.
 
 ## Gate de cada etapa
 
+Correções e comportamentos novos seguem TDD: teste reproduzindo a falha,
+correção mínima e refatoração com suíte verde. Para comportamento já correto
+sem cobertura, registrar que o teste começou verde, sem fabricar um bug.
+
 Uma branch e PR por vez, commits Conventional Commits em inglês e sem
 Co-Authored-By. Testar, revisar o próprio diff, atualizar README e registrar
 comandos/resultados/limites antes de abrir PR no origin conferido. Publicar o
 SHA exato em revisão e preparar prompt independente. **Parar até o usuário
 trazer a revisão e confirmar aprovação.** Verificar cada achado contra o código,
 registrar corrigido/improcedente com evidência/pendente, corrigir na mesma PR,
-retestar e preparar re-revisão com novo SHA. Nunca fazer merge automático.
+retestar e preparar re-revisão com novo SHA. Responder diretamente a cada
+comentário/thread na PR com o que foi feito, localização, SHA e evidência; para
+achados improcedentes, justificar com evidência. O relatório local não substitui
+as respostas no GitHub. Não resolver threads ou fazer merge automaticamente.

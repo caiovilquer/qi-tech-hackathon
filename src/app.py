@@ -1,4 +1,7 @@
 from fastapi import FastAPI
+from os import environ
+
+from antifraud.configuration import DEFAULT_POLICY_PATH, load_policy_catalog
 
 from constants import check_variables
 from errors import register_error_handlers
@@ -36,6 +39,10 @@ def create_app() -> FastAPI:
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
+    )
+    # Validate all tenant versions before serving any request. No hot reload.
+    application.state.pix_policies = load_policy_catalog(
+        environ.get("PIX_POLICY_FILE", DEFAULT_POLICY_PATH)
     )
 
     # ────────────────────────────────────────────────────────────────
