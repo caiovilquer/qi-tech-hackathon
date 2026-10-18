@@ -5,6 +5,7 @@ Revise a PR da branch `feat/pix-api` contra `origin/main` base
 descrição da PR e no prompt entregue com ela; registre o HEAD efetivamente lido.
 
 Correções e prompt de re-revisão: `docs/CORRECOES-REVISAO-PR5.md`.
+Achados e correções da re-revisão: `docs/CORRECOES-REREVISAO-PR5.md`.
 
 Objetivo: POST/GET oficiais com parser de bytes, tenant/ISPB pela credencial,
 claims e inicial duráveis, providers fora de locks, revalidação até três ciclos,

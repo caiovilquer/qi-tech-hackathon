@@ -140,18 +140,27 @@ def test_decoded_path_and_query_cannot_inject_log_lines(api,caplog,encoded,escap
         assert any(escaped in s for s in entries)
 
 
-def test_pix_budget_uses_its_own_pool_and_preserves_base_wait(api):
+def test_pix_budget_uses_its_own_pool_and_preserves_base_wait(api,storage):
+    from sqlalchemy.orm import sessionmaker
     from app import create_app
-    from database import SessionLocal,engine
-    application=create_app()
-    pix_sessions=application.state.pix_controller.storage.sessions
-    assert pix_sessions.kw['bind'] is not engine
-    assert engine.pool.timeout()==30 and pix_sessions.kw['bind'].pool.timeout()==.1
-    url=api(application.state.pix_controller);connections=[engine.connect() for _ in range(15)]
+    from controllers.pix_storage import PixStorage
+    from database import engine,pix_engine,pix_engine_for
+    assert create_app().state.pix_controller.storage.sessions.kw['bind'] is pix_engine
+    assert pix_engine is not engine and engine.pool.timeout()==30 and pix_engine.pool.timeout()==.1
+    # The production Pix pool parameters, bound to this test's disposable database:
+    # the shared sentinel database never receives Pix rows from the suite.
+    isolated=pix_engine_for(storage.sessions.kw['bind'].url)
+    assert ((isolated.pool.timeout(),isolated.pool.size(),isolated.pool._recycle,isolated.pool._pre_ping)
+            ==(pix_engine.pool.timeout(),pix_engine.pool.size(),pix_engine.pool._recycle,pix_engine.pool._pre_ping))
+    url=api(controller(PixStorage(sessionmaker(bind=isolated,autoflush=False))));body=payload()
+    connections=[engine.connect() for _ in range(15)]
     try:
-        # Exercise the actual production Pix factory while every Base connection
-        # is checked out, before allowing the 16th Base request to proceed.
-        assert post(url,payload()).status_code==201
+        # Exercise the Pix pool while every Base connection is checked out, before
+        # allowing the 16th Base request to proceed.
+        assert post(url,body).status_code==201
+        assert connections[0].execute(text('SELECT count(*) FROM pix_transaction WHERE external_id=:id'),{'id':body['id']}).scalar()==0
+        with storage.read() as repo:
+            assert repo.local('demo',body['id']) is not None
         with ThreadPoolExecutor(max_workers=1) as pool:
             pending=pool.submit(requests.get,url+'/sample_entities',headers={'INTERNAL-TOKEN':'test_token'},timeout=5)
             sleep(.25)
@@ -161,6 +170,7 @@ def test_pix_budget_uses_its_own_pool_and_preserves_base_wait(api):
             assert response.status_code==200,response.text
     finally:
         for connection in connections:connection.close()
+        isolated.dispose()
 
 
 @pytest.mark.parametrize('different_hash,completed,expected',[(False,True,200),(True,True,409),(False,False,503)])

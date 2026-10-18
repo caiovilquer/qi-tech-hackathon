@@ -15,8 +15,9 @@ para revisão. O número GitHub difere da etapa por causa da PR adicional de doc
 
 1. [Prompt independente](REVISAO-PR5.md), [plano](../PLANO-IMPLEMENTACAO.md)
    e [README](../README.md).
-2. [API, configuração e protocolo](api-pix.md), [evidências/TDD](validacao-pr5.md)
-   e [correções da revisão](CORRECOES-REVISAO-PR5.md).
+2. [API, configuração e protocolo](api-pix.md), [evidências/TDD](validacao-pr5.md),
+   [correções da revisão](CORRECOES-REVISAO-PR5.md) e
+   [correções da re-revisão](CORRECOES-REREVISAO-PR5.md).
 3. Guia V3 §§3, 5, 7, 8 e 11.2; fontes oficiais abaixo. Sem migration nova;
    0001/0002 e schema oficial preservados. Adapters simulados explícitos.
 

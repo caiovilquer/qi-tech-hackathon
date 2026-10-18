@@ -182,8 +182,9 @@ contenção e mudança externa após snapshot (limite explícito, sem promessa d
 atomicidade com banco externo). Todos os cenários bloqueantes resolvidos nesta PR.
 
 **Entrega da etapa 5:** [API e protocolo](docs/api-pix.md),
-[evidências/TDD](docs/validacao-pr5.md), [prompt independente](docs/REVISAO-PR5.md)
-e [correções da revisão](docs/CORRECOES-REVISAO-PR5.md).
+[evidências/TDD](docs/validacao-pr5.md), [prompt independente](docs/REVISAO-PR5.md),
+[correções da revisão](docs/CORRECOES-REVISAO-PR5.md) e
+[correções da re-revisão](docs/CORRECOES-REREVISAO-PR5.md).
 Sem migration nova; 0001/0002 e fontes originais preservadas. A integração inclui
 reconciliação de vínculos sob locks e snapshot completo de pagamentos importados;
 é a concretização dos invariantes planejados, sem mudança de política experimental.

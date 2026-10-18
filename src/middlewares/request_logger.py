@@ -1,10 +1,9 @@
-import json
 import time
 
 from fastapi import FastAPI, Request
 
 from constants import BYPASS_ENDPOINTS
-from utils.logger import get_logger
+from utils.logger import get_logger, escape_for_log
 
 
 logger = get_logger(__name__)
@@ -50,8 +49,8 @@ def register_request_logger_middleware(application: FastAPI) -> None:
         if request.url.query:
             requested_path = f"{requested_path}?{request.url.query}"
 
-        requested_path = json.dumps(requested_path,ensure_ascii=True)[1:-1]
-        response_path = json.dumps(request.url.path,ensure_ascii=True)[1:-1]
+        requested_path = escape_for_log(requested_path)
+        response_path = escape_for_log(request.url.path)
         started_at = time.perf_counter()
         logger.info(f"ENTROU {request.method} {requested_path}")
 

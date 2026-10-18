@@ -11,7 +11,7 @@ from errors.base_error import (
     MethodNotAllowed,
     NotFoundResource,
 )
-from utils.logger import get_logger
+from utils.logger import get_logger, escape_for_log
 
 
 logger = get_logger(__name__)
@@ -61,7 +61,7 @@ def register_error_handlers(application: FastAPI) -> None:
         if exception.status_code == 405:
             return qi_exception_to_response(MethodNotAllowed())
 
-        logger.error(f"HTTP {exception.status_code} em {request.url.path}: {exception.detail}")
+        logger.error(f"HTTP {exception.status_code} em {escape_for_log(request.url.path)}: {escape_for_log(exception.detail)}")
         return qi_exception_to_response(InternalError())
 
     @application.exception_handler(RequestValidationError)
@@ -97,5 +97,5 @@ def register_error_handlers(application: FastAPI) -> None:
 
     @application.exception_handler(Exception)
     def handle_unexpected_error(request: Request, exception: Exception) -> JSONResponse:
-        logger.exception(f"Erro inesperado em {request.method} {request.url.path}")
+        logger.exception(f"Erro inesperado em {request.method} {escape_for_log(request.url.path)}")
         return qi_exception_to_response(InternalError())

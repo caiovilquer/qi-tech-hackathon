@@ -121,6 +121,11 @@ fencing, falhas SQL/commit, clocks, autenticação e isolamento de pools/tenants
 [evidências/TDD](docs/validacao-pr5.md). A referência permanece com **92 testes**,
 **59 observações e 2.000 contextos** equivalentes à Decision V3 completa.
 
+Re-revisão independente em **18/10/2026** no SHA `f3401f4`, Linux x86_64, Docker
+29.8.2 e PostgreSQL **16.15** real: quatro achados novos, corrigidos na mesma PR com
+**5 casos** adicionais; build completa com **441 testes em 74,02 s**, sem skips/xfails.
+[Correções da re-revisão](docs/CORRECOES-REREVISAO-PR5.md).
+
 Histórico da etapa 4, validação local final em **18/10/2026**, no SHA `8f341d6`:
 **366 testes passaram em 8,08 s**, incluindo os 35 testes HTTP originais,
 com PostgreSQL **16.15** real e Python **3.11.17** no Docker. São os 354 testes
@@ -208,9 +213,10 @@ Usar o token/porta configurados se diferentes dos padrões. Novo Pix retorna 201
 repetir o POST devolve 200 com DTO idêntico, sem providers. Alterar qualquer campo
 relevante mantendo o ID dá 409. GET é pelo ID externo e retorna 404 enquanto houver
 apenas reserva. Falha técnica dá 503: repetir **o mesmo ID e corpo**, inclusive
-quando o commit pode ter sido concluído sem confirmação. Conflito de titularidade
-ou vínculo bancário retorna **409 QIT002010**: reconciliar os dados institucionais
-antes de repetir; o hash original permanece reservado. Os únicos status de
+quando o commit pode ter sido concluído sem confirmação. Conflito de titularidade,
+vínculo bancário ou execução terminal local contradita pelo banco retorna
+**409 QIT002010**: reconciliar os dados institucionais antes de repetir; o hash
+original permanece reservado. Os únicos status de
 risco são `approved`, `two_factor_required` e `rejected`.
 
 O corpo tem limite incremental de 64 KiB e dinheiro permanece em centavos desde

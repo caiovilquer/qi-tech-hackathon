@@ -123,7 +123,7 @@ def reconcile_payments(context, rows, links):
         event = replace(row.execution, pix_id=target, event_id=f'{row.provider}:{row.execution.event_id}')
         previous = [e for e in events if e.payer == payer and e.pix_id == target]
         if any(e.state != 'executed' or e.occurred_at != event.occurred_at for e in previous):
-            raise ProviderDataError('Bank payment conflicts with terminal local execution')
+            raise ReconciliationRequired('Bank payment conflicts with terminal local execution')
         # Same provider/execution ID is one fact; local receipt time is knowledge metadata.
         if not any(e.event_id == event.event_id for e in previous):
             events.append(event)

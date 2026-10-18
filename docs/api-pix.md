@@ -49,7 +49,7 @@ Adapters remotos futuros implementam os mesmos protocolos assíncronos.
 | Nova análise, approved/two_factor_required/rejected | 201 após commit confirmado |
 | Mesmo tenant/ID/hash | 200 com DTO original; sem providers |
 | Mesmo tenant/ID, hash diferente, inclusive em voo | 409 QIT002002 |
-| Titularidade/vínculo financeiro precisa de reconciliação institucional | 409 QIT002010; reconciliar antes de retry |
+| Titularidade, vínculo financeiro ou execução terminal local contradita pela fonte bancária exigem reconciliação institucional | 409 QIT002010; reconciliar antes de retry |
 | GET por ID externo concluído | 200 com DTO original |
 | GET sem análise no tenant, inclusive apenas claim | 404 QIT002001 |
 | JSON/schema/tipos/formatos inválidos | 400 QIT000001 |
@@ -151,8 +151,15 @@ de executar qualquer operação. Eventos seguem a API interna confiável da etap
 Conflitos QIT002010 preservam o primeiro hash e liberam somente as leases do dono
 por owner/fence, permitindo a continuação após reconciliação sem espera artificial.
 Se mudar o corpo, usar outro ID. Não há API de reatribuição de titularidade nem
-inferência automática de vínculo. Logs escapam controles/Unicode em path/query.
-Correções e ressalvas da revisão: [CORRECOES-REVISAO-PR5.md](CORRECOES-REVISAO-PR5.md).
+inferência automática de vínculo. Execução local terminal (`failed`/`cancelled`)
+que o histórico bancário informa como executada é o mesmo conflito, com o mesmo
+código, seja detectado no enriquecimento, na releitura antes de persistir ou sob
+os locks finais; nenhum desses casos instrui retry técnico. Logs escapam
+controles/Unicode em path/query e nos handlers de erro. O pool Pix nasce em
+`pix_engine_for(url)`; os testes ligam os mesmos parâmetros ao banco descartável
+de cada caso, sem gravar Pix no banco compartilhado da sentinela.
+Correções e ressalvas da revisão: [CORRECOES-REVISAO-PR5.md](CORRECOES-REVISAO-PR5.md);
+da re-revisão: [CORRECOES-REREVISAO-PR5.md](CORRECOES-REREVISAO-PR5.md).
 
 Validação/TDD: [validacao-pr5.md](validacao-pr5.md). Revisão:
 [REVISAO-PR5.md](REVISAO-PR5.md). A etapa 6 permanece para aceitação/demonstração e

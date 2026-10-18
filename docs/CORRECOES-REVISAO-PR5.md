@@ -4,6 +4,8 @@ PR: https://github.com/caiovilquer/qi-tech-hackathon/pull/6
 Branch: `feat/pix-api`. SHA revisado: `6acd2e72838d3c88d1f155c443f04e4683bbc897`.
 O SHA corrigido e os links de CI ficam na descrição da PR e nas respostas aos oito
 comentários. Comparar `git diff 6acd2e7..HEAD`; registrar o HEAD efetivamente lido.
+A re-revisão do SHA `f3401f4` e sua segunda rodada de correções estão em
+[CORRECOES-REREVISAO-PR5.md](CORRECOES-REREVISAO-PR5.md).
 
 A revisão trouxe oito itens inline e quatro lacunas adicionais de testes no
 relatório geral. Todos foram verificados com código/guia e tratados nesta PR.

@@ -129,13 +129,29 @@ Stacks próprias removidas; `pix-pr1` preservado. Logs fora do Git em
 `../tmp/pr6-review-{baseline,red,skew-red,winner-red,focused-final,submit,reference,original,syntax}.log`.
 O SHA corrigido e o CI ficam na descrição da PR e nas respostas individuais.
 
+## Re-revisão e segunda rodada
+
+Re-revisão independente do SHA `f3401f4` em **18/10/2026** (Linux x86_64, Docker
+29.8.2, Compose v5.6.0, PostgreSQL **16.15** real, Python 3.11.17): os cinco comandos
+abaixo reproduziram **436 passaram em 68,2 s**, **23 casos em 10,9 s**, **59
+observações e 2.000 contextos** e **92 originais**. Quatro achados novos, um médio
+(contradição entre execução terminal local e histórico bancário ainda era 503 com
+instrução de retry) e três baixos (teste de pools gravando no banco compartilhado,
+ramo de `_persist` sem regressão, handlers de erro sem escape), foram corrigidos na
+mesma PR: [CORRECOES-REREVISAO-PR5.md](CORRECOES-REREVISAO-PR5.md). Os testes novos
+(`tests/integration/test_pix_api_rereview.py`, dois casos;
+`tests/unit/test_pix_log_escape.py`, três parâmetros) e o teste de pools reescrito
+registraram **6 falhas** antes das correções; a rodada focada passou com **56 em
+11,99 s** e a build completa sem mounts, como o CI, com **441 testes em 74,02 s**,
+sem skips/xfails e só o warning original. O SHA final e o CI ficam na descrição da PR.
+
 ## Reprodução
 
 Na raiz deste Git, com Docker e Compose v2:
 
 ```bash
 docker compose -p pix-api-review -f compose.test.yml up --build --abort-on-container-exit --exit-code-from tests tests
-docker compose -p pix-api-review -f compose.test.yml run --rm --no-deps tests python -m pytest -q tests/integration/test_pix_api.py tests/integration/test_pix_api_review.py tests/unit/test_pix_http_configuration.py
+docker compose -p pix-api-review -f compose.test.yml run --rm --no-deps tests python -m pytest -q tests/integration/test_pix_api.py tests/integration/test_pix_api_review.py tests/integration/test_pix_api_rereview.py tests/unit/test_pix_http_configuration.py tests/unit/test_pix_log_escape.py
 docker compose -p pix-api-review -f compose.test.yml run --rm --no-deps -v "$PWD/docs/contexto:/reference:ro" tests python tests/reference/verify_pix_reference.py --reference-dir /reference
 docker compose -p pix-api-review -f compose.test.yml run --rm --no-deps -v "$PWD/docs/contexto:/reference:ro" tests python -m unittest discover -s /reference -p 'test_*.py' -q
 docker compose -p pix-api-review -f compose.test.yml down -v --remove-orphans
