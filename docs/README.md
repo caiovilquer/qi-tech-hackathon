@@ -7,12 +7,19 @@ Caches, ambientes virtuais e temporários ficaram fora do Git.
 
 ## Estado atual
 
-As PRs 1, 2 e 3 e a PR #4 de documentação foram mergeadas. A etapa 4
-(`feat/pix-storage`) parte de `origin/main` d7cdce8 e está em revisão.
-“PR 4” no plano identifica a etapa; o número GitHub da PR de implementação
-é diferente por causa da PR adicional de docs.
+As etapas 1–4 foram mergeadas, incluindo a PR #5 em `3daa579`. A etapa 5
+(`feat/pix-api`) parte dessa `origin/main` atualizada e entrega POST/GET Pix
+para revisão. O número GitHub difere da etapa por causa da PR adicional de docs.
 
-## Revisão da etapa 4
+## Revisão da etapa 5
+
+1. [Prompt independente](REVISAO-PR5.md), [plano](../PLANO-IMPLEMENTACAO.md)
+   e [README](../README.md).
+2. [API, configuração e protocolo](api-pix.md) e [evidências/TDD](validacao-pr5.md).
+3. Guia V3 §§3, 5, 7, 8 e 11.2; fontes oficiais abaixo. Sem migration nova;
+   0001/0002 e schema oficial preservados. Adapters simulados explícitos.
+
+## Histórico da etapa 4
 
 1. [Prompt independente](REVISAO-PR4.md), [plano](../PLANO-IMPLEMENTACAO.md)
    e [README](../README.md).

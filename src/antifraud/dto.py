@@ -75,6 +75,7 @@ class PixTransactionDTO:
             "dict_evidence": {role: asdict(item) for role, item in context.dict_evidence},
             "dict_queried": context.dict_queried, "enrichment": enrichment,
             "provider_traces": tuple(asdict(trace) for trace in context.provider_traces),
+            "bank_payments": tuple(asdict(payment) for payment in context.bank_payments),
             "features": {
                 "general_profile": features.general, "payee_profile": features.payee_profile,
                 "recipient_established": features.established, "device_state": features.device,

@@ -150,7 +150,7 @@ class ConfigurationTests(unittest.TestCase):
 from app import app
 assert app.state.pix_policies.for_tenant('demo').version == 'pix-experimental-v3'
 assert '/sample_entity' in {route.path for route in app.routes}
-assert '/pix/transaction' not in {route.path for route in app.routes}
+assert {'/pix/transaction', '/pix/transaction/{id}'} <= {route.path for route in app.routes}
 """)
         self.assertEqual(result.returncode, 0, result.stderr)
 

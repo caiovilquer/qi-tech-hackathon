@@ -1,7 +1,7 @@
 """External enrichment only. Claim ownership, persistence and HTTP remain with the caller."""
 from dataclasses import dataclass, field, replace
 from enum import Enum
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Callable
 
 from antifraud.context import Context, Pix, ProviderTrace, supported_time
@@ -51,6 +51,7 @@ class EnrichmentProgress:
     selected: tuple[ReputationRecord, ...]
     lookups: tuple[ReputationRecord, ...]
     received_at: tuple[tuple[str, datetime], ...]
+    bank_rows: tuple = ()
 
     @property
     def cache_updates(self):
@@ -85,7 +86,7 @@ class Enricher:
             raise ProviderDataError('Invalid enrichment policy/budget/clock')
 
     async def enrich(self, base: Context, *, source_check: SourceCheck, deadline: Deadline,
-                     cached=(), security_cached=None, links=(), resume=None):
+                     cached=(), security_cached=None, links=(), resume=None, on_initial=None):
         if not isinstance(source_check, SourceCheck):
             raise ValueError('A proven owned or completed source check is required')
         deadline.remaining()
@@ -158,6 +159,12 @@ class Enricher:
             payments, history_state = (), 'unavailable'
         receipts.append(('history', capture()))
         security = select_security(scope, self.bank.identity, (observed,), now, cached=security_cached)
+        # Ignore executions outside the behavioural window of this request.
+        # In particular, a historical bank link need not load an ancient local
+        # analysis merely to discard it later in the pure feature calculation.
+        payments = tuple(row for row in ((resume.bank_rows if resume else ()) + payments)
+                         if base.pix.transaction_at-timedelta(days=self.policy.history_days)
+                         < row.pix.transaction_at <= base.pix.transaction_at)
         context = reconcile_payments(base, payments, links)
         context = replace(context, decision_at=now, security=security.snapshot, dict_evidence=(), dict_queried=(), dict_actions=())
         confidence = preliminary(context, self.policy).c_pre
@@ -209,6 +216,8 @@ class Enricher:
                 actions[role] = 'skipped_after_initial' if role == 'payer' else 'skipped_confidence'
             if role == 'payer' and source_check == SourceCheck.OWNED and initial is None:
                 initial = known[key]
+                if on_initial is not None:
+                    await on_initial(initial)
 
         # Final knowledge time follows all responses. Recheck expiry without
         # renewing source validity or replacing an expired watermark with old clean data.
@@ -222,7 +231,7 @@ class Enricher:
         context = replace(context, decision_at=now, security=security.snapshot)
         progress = EnrichmentProgress(base.pix, self.policy, self.bank.identity, self.reputation.identity,
             self.scope, deadline, source_check, now, security, observed, initial,
-            tuple(r for r in known.values() if r is not None), tuple(raw_log), tuple(receipts))
+            tuple(r for r in known.values() if r is not None), tuple(raw_log), tuple(receipts), payments)
         if security.state == 'stale':
             raise EnrichmentNeedsRefresh('Known bank security is expired; refresh required', progress)
         if (actions['payee'] == 'skipped_confidence'

@@ -4,10 +4,11 @@ Referência vigente: guia V3 de 17/10/2026, política `pix-experimental-v3`.
 Estado: PR 1 aprovada e mergeada em `c35005af40590fe9b60023ab29ac62d85bb9ff0f`.
 PR 2 aprovada e mergeada em `1971e51fad28c38ad7e198db78f9ab73a1837b14`.
 PR 3 aprovada e mergeada em `1e233ee4e5a02b3d7e7818eff1b1a27089690978`.
-Etapa 4 implementada para revisão independente: `feat/pix-storage`, a partir de
-`origin/main` d7cdce8 (PR 3 + PR #4 de documentação). A PR desta etapa terá
-numeração GitHub própria; “PR 4” nas seções abaixo identifica a etapa do plano.
-Há persistência interna Pix testada; os endpoints Pix continuam na etapa 5.
+Etapa 4 aprovada e mergeada pela PR #5 em
+`3daa579ef040e49f3f242a1bf7b39d01f9aefabc`.
+Etapa 5 implementada em `feat/pix-api`, criada após pull de `origin/main` nessa
+base, para revisão independente. POST/GET Pix integram claims, providers e commit;
+aceitação/demonstração final continuam na etapa 6, sem avanço antecipado.
 
 ## Fontes e precedência
 
@@ -179,6 +180,12 @@ evento concorrente que altera exposição; crash/takeover; flush/commit falho
 e commit desconhecido resolvido pelo retry. **Riscos:** deadline real,
 contenção e mudança externa após snapshot (limite explícito, sem promessa de
 atomicidade com banco externo). Todos os cenários bloqueantes resolvidos nesta PR.
+
+**Entrega da etapa 5:** [API e protocolo](docs/api-pix.md),
+[evidências/TDD](docs/validacao-pr5.md) e [prompt independente](docs/REVISAO-PR5.md).
+Sem migration nova; 0001/0002 e fontes originais preservadas. A integração inclui
+reconciliação de vínculos sob locks e snapshot completo de pagamentos importados;
+é a concretização dos invariantes planejados, sem mudança de política experimental.
 
 ### PR 6 — `test/pix-delivery`: aceitação e documentação de entrega
 

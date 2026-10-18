@@ -102,8 +102,8 @@ from constants import DATABASE_URL
 
 
 engine = create_engine(
-    DATABASE_URL, pool_size=5, pool_recycle=600, pool_pre_ping=True,
-    connect_args={"options": "-c search_path=public"},
+    DATABASE_URL, pool_size=5, pool_recycle=600, pool_pre_ping=True, pool_timeout=.1,
+    connect_args={"options": "-c search_path=public", "connect_timeout": 1},
 )
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False)
