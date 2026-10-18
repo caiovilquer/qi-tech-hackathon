@@ -17,10 +17,22 @@ Ambiente de uso `pix-pr1` preservado; stacks novas não publicam portas e usam
 PostgreSQL descartável. Cada teste novo de storage cria banco aleatório
 adicional no servidor de testes e o remove ao terminar, inclusive após erro.
 
-Após implementação: **354 testes passaram em 7,25 s**, com PostgreSQL
+Após a implementação inicial: **354 testes passaram em 7,25 s**, com PostgreSQL
 **16.15** real: 312 anteriores e 42 casos novos
 em `tests/integration/test_pix_storage.py`. Há um aviso de depreciação ao importar
-o declarative_base original da Base API; não é falha/skip. O CI da branch complementa essa evidência local no SHA exato da revisão.
+o declarative_base original da Base API; não é falha/skip.
+
+Após as correções da revisão, validação local final em **18/10/2026, 06:08 -03**,
+no SHA `8f341d6e5299f9df4e7afc848cfa3136f9cda9d2`, com checkout limpo:
+**366 testes passaram em 8,08 s**, sem skips/xfails. A execução focada em
+storage e seleção de providers passou com **81 testes em 3,08 s**.
+Ambas emitiram somente o mesmo warning de depreciação. Foram usados macOS ARM64,
+Docker **29.8.2**, Compose **5.6.0**, Python **3.11.17** no container e
+PostgreSQL **16.15** real. A comparação separada confirmou **59 observações e
+2.000 contextos** iguais à Decision V3 completa. Todos os comandos terminaram
+com código 0. A stack `pix-storage-review` foi removida com volumes e órfãos;
+o ambiente `pix-pr1` permaneceu ativo. Logs fora do Git em
+`../tmp/pr4-review-local-{full,focused,reference,cleanup}.log`.
 
 - **229 testes puros anteriores** passam no venv Python 3.11.15.
 - **92 testes originais** passam, fontes preservadas.
@@ -102,7 +114,7 @@ Com Docker/Compose v2 e daemon disponível, na raiz deste Git:
 
 ```bash
 docker compose -p pix-storage-review -f compose.test.yml up --build --abort-on-container-exit --exit-code-from tests tests
-docker compose -p pix-storage-review -f compose.test.yml run --rm --no-deps tests python -m pytest -q tests/integration/test_pix_storage.py
+docker compose -p pix-storage-review -f compose.test.yml run --rm --no-deps tests python -m pytest -q tests/integration/test_pix_storage.py tests/unit/test_pix_provider_selection.py
 docker compose -p pix-storage-review -f compose.test.yml run --rm --no-deps -v "$PWD/docs/contexto:/reference:ro" tests python tests/reference/verify_pix_reference.py --reference-dir /reference
 docker compose -p pix-storage-review -f compose.test.yml down -v --remove-orphans
 ```
@@ -129,8 +141,10 @@ gerou 11 testes de storage e 1 unitário da etapa 3, escritos antes das correç�
   `test_raw_body_is_optional_bounded_and_bound_to_the_canonical_hash`,
   `test_receipt_is_finalized_once` e `test_initial_completion_conflict_leaves_reservation_with_its_owner`.
 
-A execução PostgreSQL desta rodada não foi possível na máquina do revisor. O CI do
+A execução PostgreSQL inicialmente não foi possível na máquina do revisor. O CI do
 commit `308488e` (push e PR) registrou **366 testes passando em 14,24 s**, sem
 skips/xfails e com o mesmo warning do declarative_base, além de **59 observações e
 2.000 contextos** idênticos à referência V3. Links e detalhes em
-[CORRECOES-REVISAO-PR4.md](CORRECOES-REVISAO-PR4.md).
+[CORRECOES-REVISAO-PR4.md](CORRECOES-REVISAO-PR4.md). A validação local final
+registrada acima reproduziu os **366 testes**, a suíte focada de **81 testes**
+e o diferencial **59/2.000** com Docker e PostgreSQL reais.

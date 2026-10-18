@@ -36,21 +36,38 @@ sem versionamento) estão documentados em storage-pix.md.
 
 ## Evidências
 
-Os testes foram escritos antes das correções, a partir dos achados. A máquina do
-revisor não executa a suíte PostgreSQL (sem Docker), e o Python disponível é 3.14,
-fora da versão fixada; a evidência de execução desta rodada é o CI do commit de
+Os testes foram escritos antes das correções, a partir dos achados. Na revisão,
+a máquina do revisor não tinha Docker/PostgreSQL e usava Python 3.14, fora da
+versão fixada. A primeira evidência de execução foi o CI do commit de
 correção `308488ecaf062109b35708629f058c6c1f56a7bb`:
 [push](https://github.com/caiovilquer/qi-tech-hackathon/actions/runs/39113851445) e
 [PR](https://github.com/caiovilquer/qi-tech-hackathon/actions/runs/39113853998),
 ambos com **366 testes passando em 14,24 s** (354 anteriores, 11 novos de storage e
 1 unitário de seleção), 1 warning do declarative_base, PostgreSQL 16 real, e
-**59 observações e 2.000 contextos** iguais à Decision V3 completa. Quem tem Docker
-reproduz com os comandos abaixo; o HEAD final da PR está na descrição.
+**59 observações e 2.000 contextos** iguais à Decision V3 completa.
 
-Localmente, sem PostgreSQL, foram conferidos: compilação de `src`, `tests` e
+Na máquina do revisor, sem PostgreSQL, foram conferidos: compilação de `src`, `tests` e
 `migrations`; importação do módulo de storage; os dois testes de codec; o
 unitário `LinkedExecutionDedupTests` e a suíte de seleção da etapa 3, em venv
 descartável. Isso não substitui a suíte PostgreSQL.
+
+Validação local final em **18/10/2026, 06:08 -03**, no checkout limpo do SHA
+`8f341d6e5299f9df4e7afc848cfa3136f9cda9d2`, executando os comandos abaixo:
+
+| Execução | Resultado observado |
+|---|---|
+| Suíte completa, incluindo HTTP, migrations e concorrência PostgreSQL | **366 passaram em 8,08 s**, sem skips/xfails |
+| Storage e seleção de providers, isolados da suíte completa | **81 passaram em 3,08 s**, sem skips/xfails |
+| Comparação com referência V3 montada somente para leitura | **59 observações e 2.000 contextos** com Decision completa idêntica |
+| Limpeza da stack de testes | `down -v --remove-orphans` concluído; ambiente `pix-pr1` preservado |
+
+Ambiente: macOS ARM64, Docker **29.8.2**, Compose **5.6.0**, Python **3.11.17**
+no container e PostgreSQL **16.15** real. As duas execuções pytest terminaram
+com código 0 e o mesmo warning de depreciação do `declarative_base` original;
+a comparação e a limpeza também terminaram com código 0. Os logs estão fora
+do Git, em `../tmp/pr4-review-local-{full,focused,reference,cleanup}.log`.
+Esta rodada não alterou código nem ampliou a cobertura para o fluxo HTTP Pix;
+o HEAD final da PR está na descrição.
 
 ```bash
 docker compose -p pix-storage-review -f compose.test.yml up --build --abort-on-container-exit --exit-code-from tests tests

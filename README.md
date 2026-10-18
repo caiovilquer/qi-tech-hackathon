@@ -111,13 +111,17 @@ nome em `-p`. Migrations são exercitadas em bancos aleatórios adicionais,
 criados e removidos no servidor de testes (o usuário local de testes precisa
 poder criar bancos). A API não ganha endpoints administrativos para isso.
 
-Execução local da etapa 4: **354 testes passaram** (83 anteriores HTTP/PostgreSQL,
-229 puros anteriores e 42 casos novos de storage/codec), incluindo os 35 testes HTTP originais.
-As correções da revisão independente acrescentaram 11 casos de storage e 1 unitário:
-**366 testes passaram** no CI do commit `308488e`, conforme
-[docs/CORRECOES-REVISAO-PR4.md](docs/CORRECOES-REVISAO-PR4.md). A comparação
-separada reproduziu **59 observações** e **2.000 contextos** com decisão completa
-igual à referência V3. O CI faz essa comparação montando as fontes somente
+Validação local final da etapa 4 em **18/10/2026**, no SHA `8f341d6`:
+**366 testes passaram em 8,08 s**, incluindo os 35 testes HTTP originais,
+com PostgreSQL **16.15** real e Python **3.11.17** no Docker. São os 354 testes
+da implementação inicial, 11 casos de storage e 1 unitário acrescentados pelas
+correções da revisão. A suíte focada de storage e seleção de providers passou
+com **81 testes em 3,08 s**. Sem skips/xfails; ambas as execuções emitiram um
+warning de depreciação do `declarative_base` original. A comparação separada
+reproduziu **59 observações** e **2.000 contextos** com decisão completa igual à
+referência V3. Comandos, ambiente e evidências anteriores do CI em
+[docs/CORRECOES-REVISAO-PR4.md](docs/CORRECOES-REVISAO-PR4.md).
+O CI faz essa comparação montando as fontes somente
 para leitura no container de testes. A etapa 4 testa concorrência dos componentes internos, não do fluxo HTTP Pix
 completo nem eficácia da política. Ver [evidências da etapa 4](docs/validacao-pr4.md).
 
