@@ -1,0 +1,188 @@
+# Providers, histórico e enriquecimento Pix — PR 3
+
+A PR entrega uma biblioteca integrada ao motor puro, antes da exposição HTTP.
+Não adiciona serviço, fila, Redis, dependência, migration ou endpoint. O PDF
+oficial define o contrato Pix; escopo, temporalidade, consulta condicional e
+coordenação são decisões do guia V3. Pesos, TTL de referência, 250 ms e 3 s são
+parâmetros experimentais, sem calibração/conformidade comprovada.
+
+## Contratos e adapters
+
+`src/providers/contracts.py` declara `BankContextProvider` e
+`ReputationProvider`. Ambos identificam `ProviderIdentity(name, version)`.
+Os métodos são **async**, recebem `as_of` e `timeout_seconds` fracionário e
+retornam dados normalizados/imutáveis. Fixture e futuro adapter remoto usam
+a mesma assinatura; não há branch de regra `if mock` ou adapter real fictício.
+
+- Banco: `security(SecurityScope, as_of, timeout_seconds=...)` e
+  `payments(AccountKey, as_of, timeout_seconds=...)`, métodos separados.
+- Reputação: `reputation(ReputationKey, as_of, timeout_seconds=...)`.
+- `SecurityScope` inclui pagador/tenant, device observado, conta destinatária
+  e documento do titular de destino. Não emprestar confiança a outro device,
+  conta, titular ou tenant.
+- `ReputationKey` inclui tenant, documento normalizado/DV, operação
+  `person_reputation`, escopo de permissão, provider e versão. Papel não faz
+  parte da identidade da pessoa; a mesma consulta pode atender ambos os papéis.
+- `BankRecord` e `ReputationRecord` preservam cobertura e proveniência.
+  Enums/contadores/booleans vêm dos tipos do motor; a fronteira valida sujeito,
+  escopo, DV, timezone, cronologia, validade, provider e restrições aplicáveis.
+  Datas são normalizadas em UTC. Dado recebido após expirar é válido como
+  histórico **stale**, sem se tornar reputação limpa.
+
+`FixtureBankProvider` e `FixtureReputationProvider` recebem datasets explícitos,
+copiam coleções para tuplas e permanecem imutáveis. Ausência retorna
+`not_covered`; indisponibilidade sintética é configurada explicitamente e lança
+`ProviderUnavailable`; snapshot mais novo expirado retorna `stale`. Segurança
+sem fixture tem snapshot `None`, nunca aparelho implicitamente registrado.
+Não há endpoints HTTP artificiais nem chamadas externas nesses adapters.
+
+Mudança de titularidade no mesmo `(tenant, branch, account)` é detectada na
+carga das fixtures e na reconciliação com histórico local; exige reconciliação
+explícita, sem misturar perfis. Não há workflow de onboarding nesta etapa.
+Restrições com outro sujeito ou conta no snapshot bancário são erro de dados.
+
+## Seleção temporal e material para o futuro cache
+
+`selection.py` escolhe somente dados observados **e conhecidos** até `as_of`.
+Ordena por `(observed_at, source_version)`, sem usar entrega tardia como prova
+de atualidade. `source_version` é revisão dos dados, diferente da versão do
+contrato do provider que integra a chave do cache.
+
+A seleção compara resposta e snapshot anterior de mesmo escopo. O snapshot
+mais novo conhecido continua sendo o watermark mesmo após expirar: resposta
+limpa antiga não o substitui. Revisão nova pode encerrar relato/cancelar marcação;
+mesma revisão com conteúdo/proveniência conflitante é `ProviderDataError`.
+Duplicatas do mesmo fato mantêm o primeiro conhecimento; mudança de metadado
+available→stale não é mudança do fato. Nenhum dado vencido vira limpeza.
+
+`cache_updates` devolve fatos available/stale selecionados para a futura camada
+de persistência. Não há cache global nem escrita em banco aqui. O resultado
+bruto das consultas fica em `lookups`; `initial_result` conserva a cobertura
+verdadeira da checagem inicial, inclusive falha técnica. A PR 4 deve persistir
+ambos no protocolo de posse/fencing, sem tratar indisponibilidade como sucesso
+limpo. Não descartar watermarks expirados ao implementar o storage.
+
+O TTL da política é usado nas coberturas sintéticas ausentes/indisponíveis;
+fixtures com dados presentes declaram `valid_until` explicitamente. Não
+estender ou renovar validade da fonte ao ler cache. Um adapter real deverá
+construir a validade efetiva conforme fonte e orçamento acordados, sem atribuir
+universalidade ao TTL de 300 s da demo.
+
+## Montagem de contexto e DICT
+
+`Enricher(bank, reputation, policy).enrich(...)`:
+
+1. Recebe `SourceCheck.OWNED` ou `COMPLETED`, obrigatório. Estado em andamento
+   ou não reivindicado não pode ser representado por um falso completed.
+   Essa é uma pré-condição do chamador, **ainda sem implementação durável**.
+2. Busca segurança atual e execuções bancárias por métodos separados e
+   reconcilia os fatos. Ausência/indisponibilidade ficam explícitas.
+3. Calcula `C_pre` com `preliminary` do próprio motor, incluindo segurança,
+   histórico local e perfil bancário reconciliado, sem reputação DICT.
+4. Usa evidência vigente de cache de escopo exato, mesmo quando C_pre é alto.
+   Sem ela: remetente consulta apenas em OWNED; destinatário em C_pre <80.
+   C_pre =80 pula destinatário; não pular a origem inicial só porque será rejeitada.
+5. Coalesce leituras da mesma chave dentro dessa análise, inclusive falhas:
+   uma consulta lógica, até um retry, não duas consultas independentes para
+   a mesma pessoa. Cobertura desconhecida segue `queried`, nunca `cache` limpo.
+6. Devolve Context imutável, security/history coverage, initial_result,
+   lookups e cache_updates. Não grava análise, reserva, evento ou resultado final.
+
+Troca de device, rejeição ou indisponibilidade não reinicia o gatilho da origem
+quando o chamador fornece COMPLETED. Isso é testado como decisão da biblioteca,
+sem alegar idempotência, sobrevivência a crash ou coordenação entre processos.
+O chamador da PR 4/5 deverá comprovar posse, aguardar dono ativo, revalidar e
+persistir conclusão inclusive indisponível, exatamente como guia §8.2.
+
+`Context.provider_traces` alimenta a auditoria privada do DTO com provider,
+versão, operação, permissão, proveniência e estados usados/consultados. Distingue
+falha de lookup de evidência antiga ainda conhecida. Resposta pública continua
+com três chaves de topo e sem prontuário/documentos de terceiros.
+
+## Histórico bancário sem análises fictícias
+
+`BankPayment` é um fato de execução confirmado: provider, operation_id, Pix
+e ExecutionEvent `executed` correspondente, com ocorrência/conhecimento coerentes.
+Não converter aprovado ou 2FA passado em pagamento; não criar HistoricalAnalysis
+artificial, receipt, desafio ou cadastro de device para importar o histórico.
+
+`BankLink(tenant, provider, operation_id, local_pix_id)` faz a ligação explícita
+com uma operação local. O chamador fornece o conjunto completo de vínculos
+verificados; uma associação omitida entre IDs diferentes não pode ser inferida
+por valor/horário. A consulta/persistência de vínculos é responsabilidade da
+PR 4, sem a qual não se declara reconciliação durável. Se IDs se sobrepõem
+sem link, a biblioteca recusa a
+ambiguidade. Operações de mesmo valor/instante/destino continuam distintas se
+o ID bancário é distinto. Conflitos de fato/link, dois IDs bancários ligados à
+mesma operação local do mesmo provider e ID de execução reutilizado são erros.
+A conta, titulares, destino, valor e tempos financeiros devem concordar.
+
+Execução vinculada é reaproveitada pela análise local, sem outro pagamento
+importado. Execução sem análise local permanece em `Context.bank_payments`.
+Ambas formam perfil somente quando conhecidas, na janela de 90 dias e maduras
+pela **transação e execução** em t−24h. Perfis geral/específico e medianas usam
+os pagamentos reconciliados; o fato sob análise nunca entra como anterior.
+
+Execuções externas sem análise local **não contam como tentativas da nossa
+API**, recebimentos por decision_at, fan-in de intenções, observação de device
+ou exposição reservada pela API. Exposição das análises locais continua usando
+seus eventos; limites financeiros externos devem vir do banco, incluindo
+`bank_limit_exceeded`. Essa separação aplica o significado de tentativa do guia
+§4.1 e evita promover seed do simulador a storage de produção. Não promete
+visibilidade de todos os movimentos de uma instituição real.
+
+## Prazo e cancelamento
+
+`Deadline.after(3)` usa relógio monotônico. O chamador deve criar o orçamento
+no início do futuro request e compartilhar a mesma instância entre operações.
+`ProviderRunner` limita cada tentativa a min(0.25, restante), com no máximo
+**um retry técnico**. Falha de dados não é retry; cancelamento do chamador se
+propaga; orçamento total esgotado lança `BudgetExceeded`, sem resultado favorável
+tardio. Timeout técnico esgotado, com orçamento total restante, vira cobertura
+unavailable no enriquecimento.
+
+O runner cancela chamadas async cooperativas e verifica o tempo antes/depois
+de cada retorno. Adapters **não podem bloquear o event loop ou suprimir
+cancelamento**. Não se promete interromper Python arbitrário, threads ou I/O
+síncrono. O `RestConnector` original aceita `.25` e recusa zero/negativo/NaN/Inf;
+isso continua sendo timeout de socket, não deadline total. Um futuro adapter
+remoto precisa respeitar o contrato async/cancelamento; chamar requests
+síncrono diretamente no event loop não atende ao contrato. Nenhuma integração
+remota é declarada pronta nesta PR. Banco síncrono continuará no threadpool
+na integração HTTP futura; esta etapa não altera os resources existentes.
+
+## Exemplo executável da biblioteca
+
+Com dependências de dev instaladas, na raiz do Git:
+
+```bash
+PYTHONPATH=src .venv/bin/python - <<'PY'
+import asyncio
+from datetime import datetime, timezone
+from antifraud.context import Pix, AccountKey, DestinationKey, Context
+from antifraud.policy import Policy
+from antifraud.engine import evaluate
+from providers.contracts import ProviderIdentity
+from providers.fixtures import FixtureBankProvider, FixtureReputationProvider
+from providers.enrichment import Enricher, SourceCheck
+from providers.budget import Deadline
+
+async def demo():
+    now = datetime(2026, 10, 17, 17, tzinfo=timezone.utc)
+    pix = Pix('demo', AccountKey('demo', '0001', '88213', '12345678909'),
+              '98765432100', DestinationKey('60701190', '3675', '10442'),
+              5000, now, datetime(2020, 1, 1, tzinfo=timezone.utc), 'observed-device')
+    identity = ProviderIdentity('synthetic-demo', 'v1')
+    outcome = await Enricher(FixtureBankProvider(identity), FixtureReputationProvider(identity), Policy()).enrich(
+        Context(pix, now), source_check=SourceCheck.OWNED, deadline=Deadline.after(3))
+    decision = evaluate(outcome.context)
+    print(decision.status, decision.score, outcome.security.state,
+          dict(outcome.context.dict_actions))
+asyncio.run(demo())
+PY
+```
+
+Saída: `approved 10 not_covered {'payer': 'queried', 'payee': 'queried'}`.
+É uma simulação explícita da biblioteca com R$50 e dados ausentes, não uma
+análise persistida/HTTP ou prova de posse concorrente. O score vem das regras;
+o adapter não retorna aprovação fixa.

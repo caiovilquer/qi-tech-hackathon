@@ -74,6 +74,7 @@ class PixTransactionDTO:
             "decision": asdict(decision), "security": asdict(context.security) if context.security else None,
             "dict_evidence": {role: asdict(item) for role, item in context.dict_evidence},
             "dict_queried": context.dict_queried, "enrichment": enrichment,
+            "provider_traces": tuple(asdict(trace) for trace in context.provider_traces),
             "features": {
                 "general_profile": features.general, "payee_profile": features.payee_profile,
                 "recipient_established": features.established, "device_state": features.device,
@@ -81,6 +82,8 @@ class PixTransactionDTO:
                 "destination_age_microseconds": features.age // timedelta(microseconds=1),
                 "night_qualifies": features.qualifies, "night_start": features.ns,
                 "history_count": len(features.history), "payer_history_count": len(features.mine),
+                "bank_payment_count": len(features.bank_payments),
+                "bank_payment_refs": tuple((p.provider, p.operation_id) for p in features.bank_payments),
                 "mature_payments": len(features.mature), "mature_payee_payments": len(features.mature_payee),
                 "paid_payee_payments": len(features.paid_payee),
                 "velocity_count": features.count, "receipt_count": features.receipt_count,

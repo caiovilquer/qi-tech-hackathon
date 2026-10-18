@@ -1,4 +1,5 @@
 import os
+import math
 
 
 SERVICE_ROOT = os.path.abspath(os.path.dirname(__file__))
@@ -25,7 +26,9 @@ BANKSLIP_API_INTERNAL_TOKEN = os.environ.get("BANKSLIP_API_INTERNAL_TOKEN", "def
 # Quantos segundos esperar pelo serviço de boletos antes de desistir.
 # Todo connector TEM um timeout — o porquê está em
 # src/connectors/rest_connector.py.
-BANKSLIP_API_TIMEOUT = int(os.environ.get("BANKSLIP_API_TIMEOUT", "5"))
+BANKSLIP_API_TIMEOUT = float(os.environ.get("BANKSLIP_API_TIMEOUT", "5"))
+if not math.isfinite(BANKSLIP_API_TIMEOUT) or BANKSLIP_API_TIMEOUT <= 0:
+    raise ValueError("BANKSLIP_API_TIMEOUT must be positive finite seconds")
 
 # Rotas públicas: não exigem o header INTERNAL-TOKEN. São as duas que
 # precisam responder pra quem ainda não tem token nenhum: a raiz, que
