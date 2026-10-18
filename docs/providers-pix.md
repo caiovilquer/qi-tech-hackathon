@@ -182,7 +182,9 @@ Identidades pertencem ao namespace tenant/provider; providers diferentes podem
 ter o mesmo ID, sem inferir vínculo financeiro entre eles.
 
 Execução vinculada é reaproveitada pela análise local, sem outro pagamento
-importado. Execução sem análise local permanece em `Context.bank_payments`.
+importado. Uma execução já conhecida localmente pelo mesmo provider/ID (por
+exemplo, ingerida pelo storage com `available_at` igual ao recebimento local) é
+um único fato: a reconciliação não acrescenta uma segunda cópia. Execução sem análise local permanece em `Context.bank_payments`.
 Ambas formam perfil somente quando conhecidas, na janela de 90 dias e maduras
 pela **transação e execução** em t−24h. Perfis geral/específico e medianas usam
 os pagamentos reconciliados; o fato sob análise nunca entra como anterior.

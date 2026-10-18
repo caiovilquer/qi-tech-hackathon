@@ -228,3 +228,22 @@ class SelectionSafetyTests(unittest.TestCase):
         self.assertIs(reputation_record().evidence.observed_at.tzinfo, timezone.utc)
         self.assertIs(security_record().snapshot.observed_at.tzinfo, timezone.utc)
         self.assertIs(payment().execution.occurred_at.tzinfo, timezone.utc)
+
+
+class LinkedExecutionDedupTests(unittest.TestCase):
+    def test_locally_known_execution_is_one_fact_despite_local_receipt_time(self):
+        # Storage returns ingested events with available_at = local received_at, which differs
+        # from the bank's own knowledge time; the link must not produce a second copy.
+        bank = payment()
+        local = replace(bank.pix, id='local-id')
+        known = replace(bank.execution, pix_id=local.id, event_id=f'{IDENTITY.name}:{bank.execution.event_id}',
+                        available_at=bank.execution.available_at + timedelta(minutes=5))
+        c = Context(example_pix('current'), BASE, history=(history(local),), execution_events=(known,))
+        link = BankLink('demo', IDENTITY.name, bank.operation_id, local.id)
+        result = reconcile_payments(c, (bank,), (link,))
+        self.assertEqual(result.execution_events, (known,))
+        self.assertEqual(result.bank_payments, ())
+        # An unknown execution for the same linked operation is still imported once.
+        other = replace(bank, execution=replace(bank.execution, event_id='exec:second'))
+        with self.assertRaises(ProviderDataError):
+            reconcile_payments(c, (bank, other), (link,))

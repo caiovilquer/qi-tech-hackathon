@@ -8,6 +8,7 @@ from .context import Context, Pix, HistoricalAnalysis, ExecutionEvent, BankPayme
 from .policy import Policy
 
 TZ = ZoneInfo("America/Sao_Paulo")
+FAN_IN_WINDOW = timedelta(hours=24)  # attempts to one destination that feed MULE_FAN_IN
 
 def median(values: list[int]) -> Fraction:
     ordered = sorted(values)
@@ -108,7 +109,7 @@ class Features:
     @property
     def incoming(self):
         return tuple(h for h in self.history if h.pix.destination == self.p.destination
-                     and self.t - timedelta(hours=24) < h.pix.transaction_at <= self.t)
+                     and self.t - FAN_IN_WINDOW < h.pix.transaction_at <= self.t)
 
     @property
     def fan_in_payers(self):
