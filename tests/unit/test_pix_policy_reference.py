@@ -4,21 +4,15 @@ PolicyTests ported from docs/referencia/test_politica_pix.py (36 tests).
 The 20 sequential OrchestrationTests remain reference-only (docs/referencia/test_politica_pix.py).
 No test here claims database concurrency, HTTP integration or measured efficacy.
 """
-from copy import deepcopy
-from dataclasses import FrozenInstanceError, replace
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
-import importlib.util
 import unittest
 
-from tests.support.pix_scenarios import (
-    A, B, C, EMPRESA, BASE, OLD, Analysis, FixtureProviders, Simulator, cents,
-    cpf_fixture, example_pix, seed_executed, seed_profile,
-)
+from tests.support.pix_scenarios import (A, B, EMPRESA, BASE, Analysis, Simulator, cents, cpf_fixture, example_pix, seed_executed, seed_profile)
 from antifraud.context import (
     APPROVED, TWO_FA, REJECTED, AccountKey, AuthEvent, Context, DictEvidence,
     ExecutionEvent, HistoricalAnalysis, Restriction, SecuritySnapshot,
 )
-from antifraud.policy import Policy
 from antifraud.features import effective, exposure
 from antifraud.engine import evaluate
 

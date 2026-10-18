@@ -5,7 +5,7 @@ engine; no API, locks, providers or idempotency guarantees are claimed.
 """
 from __future__ import annotations
 from dataclasses import asdict, dataclass, replace
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from decimal import Decimal
 import hashlib
 import json

@@ -30,7 +30,6 @@ def test_default_credential_is_bound_only_to_configured_demo():
 
 def test_fixture_dataset_is_whitelisted_and_uses_same_provider_contracts(tmp_path):
     from dataclasses import replace
-    from providers.contracts import ReputationKey
     bank=replace(security_record(),provider=ProviderIdentity('fixture-bank','v1'))
     reputation=reputation_record()
     reputation=replace(reputation,key=replace(reputation.key,provider=ProviderIdentity('fixture-dict','v1')))

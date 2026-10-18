@@ -279,6 +279,8 @@ class PixController:
                         self._log_outcome(tenant, pix_id, 200, winner.dto.public, started_at, cycles)
                         return 200, winner.dto.public
                 except HashConflict:
+                    logger.info('pix.analysis.error ' + log_fields(tenant=tenant.name, pix_id=pix_id, http_status=409,
+                                                                  code='QIT002002', elapsed_ms=(monotonic() - started_at) * 1000))
                     await self.finish(receipt, tenant.name, 409, 'QIT002002', request_deadline)
                     raise PixError(409, 'QIT002002')
                 except Exception:

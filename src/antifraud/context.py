@@ -41,17 +41,17 @@ def _immutable(value):
 
 class ImmutableValue:
     def __post_init__(self):
-        for field in fields(self):
-            value = getattr(self, field.name)
+        for attribute in fields(self):
+            value = getattr(self, attribute.name)
             _immutable(value)
-            if field.type == "datetime" and not isinstance(value, datetime):
-                raise TypeError(f"Invalid datetime: {field.name}")
-            if field.type == "str" and not isinstance(value, str):
-                raise TypeError(f"Invalid string: {field.name}")
-            if field.type == "int" and type(value) is not int:
-                raise ValueError(f"Invalid integer: {field.name}")
-            if field.type in ("AccountKey", "DestinationKey", "Pix") and not isinstance(value, globals()[field.type]):
-                raise TypeError(f"Invalid domain object: {field.name}")
+            if attribute.type == "datetime" and not isinstance(value, datetime):
+                raise TypeError(f"Invalid datetime: {attribute.name}")
+            if attribute.type == "str" and not isinstance(value, str):
+                raise TypeError(f"Invalid string: {attribute.name}")
+            if attribute.type == "int" and type(value) is not int:
+                raise ValueError(f"Invalid integer: {attribute.name}")
+            if attribute.type in ("AccountKey", "DestinationKey", "Pix") and not isinstance(value, globals()[attribute.type]):
+                raise TypeError(f"Invalid domain object: {attribute.name}")
         if hasattr(self, "restrictions") and (type(self.restrictions) is not tuple
                 or not all(isinstance(item, Restriction) for item in self.restrictions)):
             raise TypeError("Invalid restrictions")
