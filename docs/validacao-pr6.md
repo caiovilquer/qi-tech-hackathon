@@ -132,6 +132,35 @@ Cache de documento não elimina a reserva inicial por conta. A demo não depende
 de data fixa de conhecimento: usa hora PostgreSQL e transações sintéticas de
 dois dias antes. Datas de abertura de conta são estáveis em 01/01/2020.
 
+## Clone limpo e comandos do README
+
+Um clone **via origin SSH**, sem `.env`, venv, cache ou arquivos de trabalho do
+checkout original, foi validado no commit de implementação
+`3b6a456b32568c06797e2a6efe2d79467977a52c`:
+
+```bash
+git clone --single-branch --branch test/pix-delivery git@github.com:caiovilquer/qi-tech-hackathon.git pr6-clean
+cd pr6-clean
+git rev-parse HEAD
+docker compose -p pix-pr6-clean -f compose.test.yml up --build --abort-on-container-exit --exit-code-from tests tests
+docker compose -p pix-pr6-clean-demo -f compose.test.yml run --build --rm demo
+API_PORT=3306 DB_PORT=55436 docker compose -p pix-pr6-readme up -d --build --wait
+```
+
+- Build/migrations e suíte completa: **445 passed em 40,19s**, exit 0, sem
+  skips/xfails e com o único warning legado. Sem bind mounts de código.
+- Demo em projeto novo, somente DB + runner: exit 0, mesmas 21 análises e
+  invariantes da tabela acima. Não depende da execução prévia da suíte/API.
+- Compose de uso com portas locais alternativas: health **204**, payload
+  copiado do comando do README com POST **201**, repetição **200** e GET **200**,
+  todos com mesmo DTO. Depois de `restart api`, GET **200** idêntico ao original.
+- Clone permaneceu limpo. Commits posteriores a esse SHA alteram somente
+  documentação de evidências; o código executável é o mesmo.
+
+Os projetos de validação são descartáveis e próprios desta etapa. Removidos
+com `down -v --remove-orphans`; o volume/containers preexistentes `pix-pr1`
+foram preservados. No projeto de uso real, `down -v` não deve ser executado.
+
 ## Como reproduzir e interpretar
 
 Os comandos integrais e de referência estão no README. Referência Python é

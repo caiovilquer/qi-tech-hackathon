@@ -164,6 +164,8 @@ Validação local em **18/10/2026**: **445 testes passaram em 40,38s**,
 PostgreSQL **16.15** e Python **3.11.17**, sem skips/xfails. Referência separada:
 **92 testes**, **59 observações** e **2.000 contextos** com Decision V3 completa
 equivalente. Um warning de depreciação pertence ao `declarative_base` original.
+Um clone limpo via origin também passou: **445 testes em 40,19s**, demo
+isolada e exemplo HTTP do README, inclusive persistência após restart.
 Detalhes e reprodução em [validacao-pr6.md](docs/validacao-pr6.md).
 
 O primeiro comando preserva o exit code do pytest. Não executar suítes simultâneas
