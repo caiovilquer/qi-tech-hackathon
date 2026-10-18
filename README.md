@@ -3,7 +3,7 @@
 **Integrantes:** Caio Vilquer Carvalho; Caio Cidade Rodrigues; Matheus Victor Barbosa dos Santos.
 
 API construída sobre a Base API do Bootcamp QI Tech (FastAPI, PostgreSQL 16) que recebe
-um Pix, aplica a política **experimental** `pix-experimental-v3` e devolve `approved`,
+um Pix, aplica a política **experimental** `pix-experimental-v4` e devolve `approved`,
 `two_factor_required` ou `rejected`. Entrega `POST /pix/transaction` e
 `GET /pix/transaction/{id}`, histórico próprio em banco, análise imutável, idempotência
 concorrente, providers simulados e eventos bancários internos.
@@ -60,6 +60,8 @@ e [policies.json](src/antifraud/policies.json).
 | `DEVICE_CHANGE` | Dispositivo desconhecido diferente de um observado no histórico da conta | +20 | Mudança sem confirmação bancária acrescenta risco; troca registrada é permitida |
 | `DEVICE_POLICY_LIMIT` | Não cadastrado, ou troca desconhecida, excede patamar por operação; soma diária só para não cadastrado | >20.000 por operação ou >100.000 no dia local: piso 2FA | Pedir confirmação sem fingir implementar cadastro ou os limites oficiais de aparelho |
 | `RECENT_ACCOUNT_RECOVERY` | Recuperação ocorrida nas últimas 24h e conhecida agora | +25 | Recuperação recente pode alterar confiança no acesso; a janela é hipótese operacional |
+| `DEVICE_THEFT_REPORTED` | Contexto bancário válido informa roubo/perda comunicado para o aparelho, mesmo antes da revogação | Rejeição, sem pontos | Roubo não é inferido do comportamento; com o fato bancário, o app desbloqueado não movimenta a conta |
+| `DURESS_REPORTED` | Contexto bancário válido traz sinal de coação da sessão (ex.: credencial de pânico) | Rejeição, sem pontos | 2FA pode ser concluído sob ameaça; só o banco pode observar a coação |
 | `PAYER_BANK_RESTRICTED` | Restrição explícita vigente de remetente/documento/conta | Rejeição | Preservar decisão institucional independente de pontuação |
 | `PAYEE_BANK_RESTRICTED` | Restrição explícita vigente de destinatário/documento/conta | Rejeição | Não ignorar contraparte bloqueada por score preliminar alto |
 | `BANK_EFFECTIVE_LIMIT` | Contexto bancário válido informa limite operacional excedido | Rejeição | Separar limite efetivo de score e resultado de 2FA |
@@ -68,6 +70,8 @@ e [policies.json](src/antifraud/policies.json).
 | `PAYEE_DICT_ADVERSE` | Mesmo sinal adverso para destinatário | +30; mesmo documento compartilha máximo entre papéis | Não contar a mesma evidência duas vezes; documentos distintos são independentes |
 | `PAYEE_DICT_RESTRICTED` | Restrição explícita vigente do destinatário | Rejeição | Impedir que bônus de contexto ou tetos ocultem restrição |
 | `DICT_CHECK_UNAVAILABLE` | Consulta necessária sem evidência vigente: ausente, indisponível ou vencida | +10 uma vez | Desconhecimento não é limpeza; ainda permite pequeno Pix com risco agregado baixo |
+| `BANK_AUTHORIZED_CONTEXT` | Teto: autorização bancária explícita para conta/aparelho/destino vigente (ex.: lote de folha cadastrado) | Rejeição só por score vira 2FA | Operação legítima atípica é confirmada, não bloqueada; não supera pisos nem reputação adversa |
+| `SAME_HOLDER_TRANSFER` | Teto: mesmo CPF/CNPJ na origem e no destino | Rejeição só por score vira 2FA | O dinheiro fica com o titular; conta própria nova ainda pontua e o limite noturno rígido ainda rejeita |
 
 O perfil usa **90 dias** de memória comportamental. Só execuções confirmadas e
 conhecidas entram; intenção e execução precisam ter pelo menos **24h** em relação à
@@ -88,9 +92,12 @@ do provider; ocorrência, conhecimento, validade e revisão da fonte são dimens
    ao destinatário; `C_pre` é ordinal, não probabilidade.
 3. **Reputação e score final:** reaplicam-se os tetos. Score **≥70** rejeita; **≥30**
    exige 2FA; abaixo disso aprova.
-4. **Pisos:** o motivo mais severo prevalece. Restrições, revogação, frequência extrema
-   e limite bancário rejeitam mesmo com zero pontos; aparelho não cadastrado acima do
-   corte exige 2FA mesmo com score baixo.
+4. **Tetos:** se a rejeição vem só do score, sem piso de rejeição nem reputação adversa,
+   uma autorização bancária explícita ou a mesma titularidade a transformam em 2FA. O
+   motivo do teto só aparece quando mudou o resultado; o score continua o mesmo.
+5. **Pisos:** o motivo mais severo prevalece. Restrições, revogação, roubo ou coação
+   informados pelo banco, frequência extrema e limite bancário rejeitam mesmo com zero
+   pontos; aparelho não cadastrado acima do corte exige 2FA mesmo com score baixo.
 
 Análise antifraude, resultado de 2FA e execução financeira são fatos separados.
 Sucesso de 2FA não registra aparelho, não prova pagamento e não muda o `status`

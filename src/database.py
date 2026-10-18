@@ -16,10 +16,21 @@ engine = create_engine(
 SessionLocal = sessionmaker(bind=engine, autoflush=False)
 
 
+# Every Pix storage call holds at most one connection. A full pool makes a request
+# wait up to PIX_POOL_TIMEOUT_SECONDS inside its deadline instead of failing at
+# once with 503. Sized per uvicorn worker: API_WORKERS (default 4) * 20 Pix
+# connections stays below PostgreSQL's default max_connections of 100; the Base
+# API pool above only opens connections for Base API routes, never for Pix.
+PIX_POOL_SIZE = 10
+PIX_POOL_OVERFLOW = 10
+PIX_POOL_TIMEOUT_SECONDS = 1
+
+
 def pix_engine_for(url):
-    """Bounded Pix pool: 100 ms checkout, 1 s connect, 5 connections plus 10 overflow."""
+    """Bounded Pix pool: 1 s checkout, 1 s connect, 10 connections plus 10 overflow."""
     return create_engine(
-        url, pool_size=5, pool_recycle=600, pool_pre_ping=True, pool_timeout=.1,
+        url, pool_size=PIX_POOL_SIZE, max_overflow=PIX_POOL_OVERFLOW, pool_recycle=600, pool_pre_ping=True,
+        pool_timeout=PIX_POOL_TIMEOUT_SECONDS,
         connect_args={"options": "-c search_path=public", "connect_timeout": 1},
     )
 

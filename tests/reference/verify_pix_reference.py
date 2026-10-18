@@ -1,5 +1,9 @@
 """Differential check against the unmodified V3, outside runtime and pytest.
 
+The production policy is V4 = V3 plus documented deltas. With V3 inputs the only
+behavioural delta is a ceiling (BANK_AUTHORIZED_CONTEXT, SAME_HOLDER_TRANSFER)
+turning a score-only V3 rejection into 2FA; everything else must match exactly.
+
 Run: PYTHONPATH=src .venv/bin/python tests/reference/verify_pix_reference.py
 The CI mounts reference documents read-only into the test container.
 """
@@ -19,6 +23,22 @@ from antifraud import context as domain
 from antifraud.engine import evaluate
 from tests.support.pix_scenarios import BASE, example_pix, cpf_fixture, scenarios
 
+V3_VERSION, V4_VERSION = 'pix-experimental-v3', 'pix-experimental-v4'
+V4_CEILINGS = ('BANK_AUTHORIZED_CONTEXT', 'SAME_HOLDER_TRANSFER')
+V4_FLAGS = ('theft_reported', 'duress_reported', 'context_authorized')
+
+
+def as_v3(decision):
+    """Undo exactly the documented V4 delta; any other difference still fails the comparison."""
+    decision = dict(decision)
+    assert decision['policy_version'] == V4_VERSION, decision['policy_version']
+    decision['policy_version'] = V3_VERSION
+    reasons = [reason for reason in decision['reasons'] if reason['code'] not in V4_CEILINGS]
+    if len(reasons) != len(decision['reasons']):
+        assert decision['status'] == domain.TWO_FA, 'A V4 ceiling must yield 2FA'
+        decision['status'], decision['reasons'] = domain.REJECTED, reasons
+    return decision
+
 
 def verify(reference_dir):
     spec = importlib.util.spec_from_file_location('pix_v3_reference', reference_dir / 'politica_v2_simulacao.py')
@@ -32,7 +52,8 @@ def verify(reference_dir):
             expected_fields = {field.name for field in fields(target)}
             for field in fields(value):
                 if field.name not in expected_fields:
-                    assert getattr(value, field.name) == (), 'V3 differential requires empty new provider inputs'
+                    empty = False if field.name in V4_FLAGS else ()
+                    assert getattr(value, field.name) == empty, 'V3 differential requires empty new provider inputs'
             return target(**{
                 field.name: convert(getattr(value, field.name)) for field in fields(value)
                 if field.name in expected_fields})
@@ -41,7 +62,7 @@ def verify(reference_dir):
         return value
 
     expected = json.loads((reference_dir / 'politica_simulacao_resultados.json').read_text())
-    actual = json.loads(json.dumps(scenarios()))
+    actual = [as_v3(observation) for observation in json.loads(json.dumps(scenarios()))]
     assert actual == expected['scenarios'], 'Scenario observations diverged'
     print(f'{len(actual)} archived scenario observations match the production engine')
 
@@ -78,9 +99,10 @@ def verify(reference_dir):
             [('payer', current.payer.document), ('payee', current.payee_document)])
         context = domain.Context(current, current.transaction_at, tuple(history), tuple(executions),
             tuple(authentications), security, evidence, ('payer', 'payee'))
-        expected_decision, actual_decision = asdict(reference.evaluate(convert(context))), asdict(evaluate(context))
+        expected_decision = json.loads(json.dumps(asdict(reference.evaluate(convert(context)))))
+        actual_decision = as_v3(json.loads(json.dumps(asdict(evaluate(context)))))
         assert actual_decision == expected_decision, f'Differential mismatch at seed 20261018 case {case}: {actual_decision} != {expected_decision}'
-    print('2000 seeded contexts match the complete V3 Decision (not only status)')
+    print('2000 seeded contexts match the complete V3 Decision (not only status), up to the documented V4 ceiling')
 
 
 if __name__ == '__main__':

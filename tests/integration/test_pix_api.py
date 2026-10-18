@@ -255,7 +255,7 @@ def test_same_origin_distinct_requests_are_all_counted_after_initial_wait(api,st
 def test_db_deadline_cancels_statement_and_prevents_late_commit(api,storage,monkeypatch):
     service=controller(storage);url=api(service)
     original=service._finalize_analysis
-    def slow(*args):
+    def slow(*args,**kwargs):
         # The actual slow SQL executes within the final transaction, not a mock repository.
         original_context=storage.analysis
         from contextlib import contextmanager
@@ -265,7 +265,7 @@ def test_db_deadline_cancels_statement_and_prevents_late_commit(api,storage,monk
                 work.repository.session.execute(text('SELECT pg_sleep(5)'))
                 yield work
         storage.analysis=blocked
-        try:return original(*args)
+        try:return original(*args,**kwargs)
         finally:storage.analysis=original_context
     monkeypatch.setattr(service,'_finalize_analysis',slow)
     p=payload();start=monotonic();r=post(url,p)

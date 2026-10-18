@@ -3,7 +3,7 @@ import time
 from fastapi import FastAPI, Request
 
 from constants import BYPASS_ENDPOINTS
-from utils.logger import get_logger, log_fields
+from utils.logger import get_logger, log_fields, request_path
 
 logger = get_logger(__name__)
 
@@ -18,13 +18,14 @@ def register_request_logger_middleware(application: FastAPI) -> None:
     async def log_request(request: Request, call_next):
         if request.url.path in BYPASS_ENDPOINTS:
             return await call_next(request)
-        target = request.url.path
+        path = request_path(request)
+        target = path
         if request.url.query:
             target = f"{target}?{request.url.query}"
         started_at = time.perf_counter()
         logger.info("request.started " + log_fields(method=request.method, path=target))
         response = await call_next(request)
         elapsed_ms = (time.perf_counter() - started_at) * 1000
-        logger.info("request.finished " + log_fields(method=request.method, path=request.url.path,
+        logger.info("request.finished " + log_fields(method=request.method, path=path,
                                                      status=response.status_code, elapsed_ms=elapsed_ms))
         return response

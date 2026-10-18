@@ -3,12 +3,12 @@ import asyncio
 from dataclasses import replace
 from time import monotonic
 
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import DBAPIError, TimeoutError as PoolTimeout
 
 from antifraud.adapter import to_pix
 from antifraud.contract import parse_payload_json, normalize_payload, ValidationError
 from antifraud.engine import preliminary
-from controllers.pix_storage import validate_identity
+from controllers.pix_storage import is_lock_timeout, validate_identity
 from dtos.pix_storage import Busy, HashConflict, Replay, EventInput, OwnershipConflict
 from errors.pix import PixError
 from providers.budget import Deadline, BudgetExceeded
@@ -24,6 +24,7 @@ logger = get_logger(__name__)
 MAX_REVALIDATION_CYCLES = 3
 ERROR_RECEIPT_MARGIN_SECONDS = .1
 CLAIM_RETRY_SECONDS = .025
+RECEIPT_ATTEMPTS = 2
 UNIQUE_VIOLATION = '23505'
 PIX_IDENTITY_CONSTRAINT = 'uq_pix_tenant_external_id'
 REPUTATION_OPERATION = 'person_reputation'
@@ -44,17 +45,26 @@ class PixController:
     async def finish(self, receipt, tenant, status, category, deadline, *, key=None, strict=False):
         if receipt is None:
             return
-        try:
-            await in_database(deadline, self.storage.finish_receipt, receipt, tenant, status, category, analysis_key=key)
-        except Exception:
-            logger.exception('pix.receipt.outcome_failed ' + log_fields(tenant=tenant, status=status, category=category))
-            if strict:
-                raise
+        for attempt in range(1, RECEIPT_ATTEMPTS + 1):
+            try:
+                await in_database(deadline, self.storage.finish_receipt, receipt, tenant, status, category, analysis_key=key)
+                return
+            except Exception as error:
+                # Pool checkout never reached PostgreSQL, so repeating the write cannot duplicate it.
+                if isinstance(error, PoolTimeout) and attempt < RECEIPT_ATTEMPTS:
+                    logger.warning('pix.receipt.outcome_retry ' + log_fields(tenant=tenant, status=status, attempt=attempt))
+                    continue
+                logger.exception('pix.receipt.outcome_failed ' + log_fields(tenant=tenant, status=status, category=category))
+                if strict:
+                    raise
+                return
 
     async def get(self, tenant, external_id, deadline):
         try:
             validate_identity(tenant, external_id)
         except ValueError:
+            # An ID outside the accepted format can never have been stored: the same not-found outcome.
+            logger.info('pix.query.not_found ' + log_fields(tenant=tenant, pix_id=external_id, reason='invalid_id'))
             raise PixError(404, 'QIT002001')
         try:
             analysis = await in_database(deadline, self.storage.get, tenant, external_id)
@@ -73,6 +83,23 @@ class PixController:
                                          lock_timeout_ms=max(1, min(1000, int(deadline.remaining() * 1000))))
             except Busy as busy:
                 logger.debug('pix.claim.busy ' + log_fields(reason=str(busy)))
+                await asyncio.sleep(min(CLAIM_RETRY_SECONDS, deadline.remaining()))
+
+    async def finalize(self, deadline, ticket, normalized, enriched, policy, receipt, tenant):
+        """Waits for the account/destination advisory locks within the request budget, as wait_claim does.
+
+        Concurrent payers to one destination legitimately serialize on its lock; a lock timeout
+        rolled the attempt back, so it is retried instead of being reported as a technical failure.
+        """
+        while True:
+            try:
+                return await in_database(deadline, self._finalize_analysis, ticket, normalized, enriched, policy,
+                                         receipt, tenant,
+                                         lock_timeout_ms=max(1, min(1000, int(deadline.remaining() * 1000))))
+            except DBAPIError as error:
+                if not is_lock_timeout(error):
+                    raise
+                logger.debug('pix.analysis.lock_busy ' + log_fields(pix_id=ticket.external_id))
                 await asyncio.sleep(min(CLAIM_RETRY_SECONDS, deadline.remaining()))
 
     def _reputation_key(self, tenant, document):
@@ -124,10 +151,10 @@ class PixController:
         for event in events:
             self.storage.ingest(event)
 
-    def _finalize_analysis(self, ticket, normalized, enriched, policy, receipt, tenant):
+    def _finalize_analysis(self, ticket, normalized, enriched, policy, receipt, tenant, *, lock_timeout_ms=1000):
         """Under the account locks: re-read local facts, revalidate external material, decide and persist."""
         pix = to_pix(normalized, tenant.name)
-        with self.storage.analysis(ticket, pix) as work:
+        with self.storage.analysis(ticket, pix, lock_timeout_ms=lock_timeout_ms) as work:
             now = work.now()
             repository = work.repository
             local = work.context(pix, now, policy)
@@ -246,8 +273,7 @@ class PixController:
                 progress = enriched.progress
                 await in_database(deadline, self._persist_enrichment, enriched)
                 try:
-                    dto = await in_database(deadline, self._finalize_analysis, ticket, normalized, enriched, policy,
-                                            receipt, tenant)
+                    dto = await self.finalize(deadline, ticket, normalized, enriched, policy, receipt, tenant)
                 except ContextRefreshRequired as refresh:
                     logger.debug('pix.context.refresh ' + log_fields(pix_id=pix_id, cycle=cycles, reason=str(refresh)))
                     continue

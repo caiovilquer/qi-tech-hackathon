@@ -7,6 +7,7 @@ from .policy import Policy
 from .rules import CRITERIA
 
 DEFAULT_POLICY = Policy()
+ADVERSE_REPUTATION = ("PAYER_DICT_ADVERSE", "PAYEE_DICT_ADVERSE")
 
 
 def _families(reasons, policy):
@@ -30,6 +31,13 @@ def evaluate(context: Context, policy: Policy = DEFAULT_POLICY) -> Decision:
     families = _families(reasons, policy)
     score = sum(points for _, points in families)
     status = REJECTED if score >= policy.reject_at else TWO_FA if score >= policy.two_fa_at else APPROVED
+    if status == REJECTED and not any(reason.code in ADVERSE_REPUTATION or reason.floor == REJECTED
+                                      for reason in reasons):
+        ceilings = _reasons(features, policy, "ceiling")
+        if ceilings:
+            # Score stays auditable; the ceiling is recorded only because it changed the outcome.
+            status = TWO_FA
+            reasons += ceilings
     status = max([status] + [reason.floor for reason in reasons if reason.floor], key=RANK.get)
     return Decision(status, score, families, reasons, local_score, c_pre, features.general_profile,
                     features.payee_profile, features.recipient_established, features.device_state,

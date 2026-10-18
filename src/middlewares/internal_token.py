@@ -4,7 +4,7 @@ from constants import BYPASS_ENDPOINTS, INTERNAL_TOKEN
 from errors.base_error import ForbiddenNotInternal
 from errors.handlers import qi_exception_to_response
 from providers.budget import Deadline
-from utils.logger import get_logger, log_fields
+from utils.logger import get_logger, log_fields, request_path
 from utils.pix_tenants import resolve_tenant
 from utils.request_context import get_request_id
 
@@ -22,7 +22,7 @@ def register_internal_token_middleware(application: FastAPI) -> None:
     """
 
     def deny(request: Request):
-        logger.warning("auth.denied " + log_fields(method=request.method, path=request.url.path))
+        logger.warning("auth.denied " + log_fields(method=request.method, path=request_path(request)))
         return qi_exception_to_response(ForbiddenNotInternal())
 
     @application.middleware("http")

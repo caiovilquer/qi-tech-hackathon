@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 class ConfigurationTests(unittest.TestCase):
     def setUp(self):
         self.raw = json.loads(DEFAULT_POLICY_PATH.read_text())
-        self.config = self.raw['policies']['pix-experimental-v3']
+        self.config = self.raw['policies']['pix-experimental-v4']
 
     def rejected(self):
         with self.assertRaises(PolicyConfigurationError):
@@ -28,7 +28,7 @@ class ConfigurationTests(unittest.TestCase):
     def test_shipped_configuration_equals_reference_defaults(self):
         policy = load_policy_catalog().for_tenant('demo')
         self.assertEqual(policy, Policy())
-        self.assertEqual(len(CRITERIA), 25)
+        self.assertEqual(len(CRITERIA), 29)
         self.assertEqual(set(self.config['criteria']), set(CRITERIA))
 
     def test_unknown_tenant_never_inherits_policy(self):
@@ -38,8 +38,8 @@ class ConfigurationTests(unittest.TestCase):
     def test_isolated_versions_and_immutable_loaded_copy(self):
         alternative = deepcopy(self.config)
         alternative['criteria']['LOW_HISTORY_EXPOSURE']['low_points'] = 5
-        self.raw['policies']['pix-experimental-v4'] = alternative
-        self.raw['tenants']['other'] = 'pix-experimental-v4'
+        self.raw['policies']['pix-experimental-alternative'] = alternative
+        self.raw['tenants']['other'] = 'pix-experimental-alternative'
         catalog = PolicyCatalog.from_mapping(self.raw)
         first, other = catalog.for_tenant('demo'), catalog.for_tenant('other')
         self.assertNotEqual(first.fingerprint, other.fingerprint)
@@ -115,7 +115,7 @@ class ConfigurationTests(unittest.TestCase):
         for tenant in ('', 'demo\n', 'a' * 65, '../other'):
             with self.subTest(tenant=tenant):
                 self.setUp()
-                self.raw['tenants'][tenant] = 'pix-experimental-v3'
+                self.raw['tenants'][tenant] = 'pix-experimental-v4'
                 self.rejected()
 
     def test_direct_mutable_policy_values_rejected(self):
@@ -124,7 +124,7 @@ class ConfigurationTests(unittest.TestCase):
             with self.subTest(kwargs=kwargs), self.assertRaises(PolicyConfigurationError):
                 Policy(**kwargs)
         with self.assertRaises(PolicyConfigurationError):
-            PolicyCatalog(list(load_policy_catalog().policies), (('demo', 'pix-experimental-v3'),))
+            PolicyCatalog(list(load_policy_catalog().policies), (('demo', 'pix-experimental-v4'),))
 
     def test_policy_file_invalid_json_duplicates_nonfinite_and_missing(self):
         with TemporaryDirectory() as folder:
@@ -148,7 +148,7 @@ class ConfigurationTests(unittest.TestCase):
     def test_valid_startup_freezes_catalog_and_preserves_routes(self):
         result = self.import_app(DEFAULT_POLICY_PATH, """
 from app import app
-assert app.state.pix_policies.for_tenant('demo').version == 'pix-experimental-v3'
+assert app.state.pix_policies.for_tenant('demo').version == 'pix-experimental-v4'
 assert {'/pix/transaction', '/pix/transaction/{id}'} <= {route.path for route in app.routes}
 """)
         self.assertEqual(result.returncode, 0, result.stderr)

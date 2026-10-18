@@ -1,5 +1,5 @@
 """Versioned JSON codec with an explicit domain whitelist; never pickle/eval."""
-from dataclasses import fields, is_dataclass
+from dataclasses import MISSING, fields, is_dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
@@ -38,7 +38,10 @@ def _decode(value):
             return tuple(_decode(v) for v in value['tuple'])
         if set(value)=={'type','data'} and value['type'] in TYPES:
             kind=TYPES[value['type']]
-            if type(value['data']) is not dict or set(value['data'])!={f.name for f in fields(kind)}:
+            # Rows stored before a defaulted field existed omit it; every other field is mandatory.
+            names={f.name for f in fields(kind)}
+            required={f.name for f in fields(kind) if f.default is MISSING and f.default_factory is MISSING}
+            if type(value['data']) is not dict or not required<=set(value['data'])<=names:
                 raise ValueError('Invalid storage fields')
             try:
                 # Whitelisted constructors validate their own domain invariants.

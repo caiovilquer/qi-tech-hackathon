@@ -67,7 +67,8 @@ class ImmutableValue:
                 value = getattr(self, name)
                 if type(value) is not int or value < (1 if name == "sequence" else 0):
                     raise ValueError(f"Invalid nonnegative integer: {name}")
-        for name in ("active", "terminal", "trusted_beneficiary", "bank_limit_exceeded", "night_qualifies"):
+        for name in ("active", "terminal", "trusted_beneficiary", "bank_limit_exceeded", "night_qualifies",
+                     "theft_reported", "duress_reported", "context_authorized"):
             if hasattr(self, name) and type(getattr(self, name)) is not bool:
                 raise ValueError(f"Invalid boolean: {name}")
 
@@ -187,6 +188,10 @@ class SecuritySnapshot(ImmutableValue):
     trusted_beneficiary: bool = False  # explicit bank designation for THIS account
     bank_limit_exceeded: bool = False  # independent effective bank constraint
     source_version: int = 0  # source revision for equal observed_at, not delivery order
+    # Explicit bank facts for this scope. Theft or coercion is never inferred from behaviour.
+    theft_reported: bool = False  # holder reported this device stolen/lost; revocation may still be pending
+    duress_reported: bool = False  # bank duress signal for this session, e.g. panic credential
+    context_authorized: bool = False  # scoped authorization, e.g. registered payroll batch; ends at valid_until
 
     def valid(self, now: datetime) -> bool:
         return self.observed_at <= now and self.available_at <= now < self.valid_until

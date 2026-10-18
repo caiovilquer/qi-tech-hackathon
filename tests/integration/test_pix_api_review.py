@@ -127,15 +127,15 @@ def test_known_execution_ingested_during_enrichment_is_not_reingested(api,storag
     assert not duplicates
 
 
-@pytest.mark.parametrize('encoded,escaped',[('a%0AFAKE%20LINE',None),('a%E2%80%A8FAKE%20LINE','\\u2028')])
-def test_decoded_path_and_query_cannot_inject_log_lines(api,caplog,encoded,escaped):
+@pytest.mark.parametrize('encoded',['a%0AFAKE%20LINE','a%E2%80%A8FAKE%20LINE'])
+def test_decoded_path_and_query_cannot_inject_log_lines(api,caplog,encoded):
     url=api();response=requests.get(url+'/pix/transaction/'+encoded+'?x=%0A',headers={'INTERNAL-TOKEN':'test_token'},timeout=6)
     assert response.status_code==404
     entries=[r.getMessage() for r in caplog.records if r.name.endswith('request_logger')]
     assert entries
     assert all('\n' not in s and '\r' not in s and '\u2028' not in s for s in entries)
-    if escaped is not None:
-        assert any(escaped in s for s in entries)
+    # The raw path is logged as sent, so the logged ID matches the request (D2).
+    assert all('/pix/transaction/'+encoded in s for s in entries)
 
 
 def test_pix_budget_uses_its_own_pool_independent_of_base_connections(api,storage):
@@ -144,7 +144,9 @@ def test_pix_budget_uses_its_own_pool_independent_of_base_connections(api,storag
     from controllers.pix_storage import PixStorage
     from database import engine,pix_engine,pix_engine_for
     assert create_app().state.pix_controller.storage.sessions.kw['bind'] is pix_engine
-    assert pix_engine is not engine and engine.pool.timeout()==30 and pix_engine.pool.timeout()==.1
+    from database import PIX_POOL_SIZE,PIX_POOL_OVERFLOW,PIX_POOL_TIMEOUT_SECONDS
+    assert pix_engine is not engine and engine.pool.timeout()==30 and pix_engine.pool.timeout()==PIX_POOL_TIMEOUT_SECONDS
+    assert (pix_engine.pool.size(),pix_engine.pool._max_overflow)==(PIX_POOL_SIZE,PIX_POOL_OVERFLOW)
     # The production Pix pool parameters, bound to this test's disposable database:
     # the shared sentinel database never receives Pix rows from the suite.
     isolated=pix_engine_for(storage.sessions.kw['bind'].url)

@@ -161,6 +161,26 @@ def bank_restricted(features, policy, params, *, role):
         return 0, REJECTED
 
 
+def theft_reported(features, policy, params):
+    if features.security_valid and features.context.security.theft_reported:
+        return 0, REJECTED
+
+
+def duress_reported(features, policy, params):
+    if features.security_valid and features.context.security.duress_reported:
+        return 0, REJECTED
+
+
+def bank_authorized(features, policy, params):
+    if features.security_valid and features.context.security.context_authorized:
+        return 0, TWO_FA
+
+
+def same_holder_ceiling(features, policy, params):
+    if features.pix.same_holder:
+        return 0, TWO_FA
+
+
 def bank_limit(features, policy, params):
     if features.security_valid and features.context.security.bank_limit_exceeded:
         return 0, REJECTED
@@ -211,6 +231,8 @@ _ENTRIES = (
     Criterion("DEVICE_CHANGE", "Acesso", device_change, (("points", 20),)),
     Criterion("DEVICE_POLICY_LIMIT", "Acesso", device_limit),
     Criterion("RECENT_ACCOUNT_RECOVERY", "Acesso", recovery, (("points", 25),)),
+    Criterion("DEVICE_THEFT_REPORTED", "Acesso", theft_reported),
+    Criterion("DURESS_REPORTED", "Acesso", duress_reported),
     Criterion("PAYER_BANK_RESTRICTED", "Contraparte", partial(bank_restricted, role="payer")),
     Criterion("PAYEE_BANK_RESTRICTED", "Contraparte", partial(bank_restricted, role="payee")),
     Criterion("BANK_EFFECTIVE_LIMIT", "Limite", bank_limit),
@@ -219,5 +241,9 @@ _ENTRIES = (
     Criterion("PAYEE_DICT_ADVERSE", "Contraparte", partial(dict_adverse, role="payee"), (("points", 30),), "reputation"),
     Criterion("PAYEE_DICT_RESTRICTED", "Contraparte", partial(dict_restricted, role="payee"), (), "reputation"),
     Criterion("DICT_CHECK_UNAVAILABLE", "Contraparte", dict_unavailable, (("points", 10),), "reputation"),
+    # Ceilings: a score-only rejection becomes 2FA. Never applied over a rejection floor
+    # or adverse reputation, and recorded only when it changed the outcome.
+    Criterion("BANK_AUTHORIZED_CONTEXT", "Acesso", bank_authorized, (), "ceiling"),
+    Criterion("SAME_HOLDER_TRANSFER", "Contraparte", same_holder_ceiling, (), "ceiling"),
 )
 CRITERIA = MappingProxyType({entry.code: entry for entry in _ENTRIES})

@@ -1,6 +1,6 @@
 {
   "policies": {
-    "pix-experimental-v3": {
+    "pix-experimental-v4": {
       "parameters": {
         "family_caps": {
           "Limite": 30,
@@ -110,6 +110,8 @@
         "RECENT_ACCOUNT_RECOVERY": {
           "points": 25
         },
+        "DEVICE_THEFT_REPORTED": {},
+        "DURESS_REPORTED": {},
         "PAYER_BANK_RESTRICTED": {},
         "PAYEE_BANK_RESTRICTED": {},
         "BANK_EFFECTIVE_LIMIT": {},
@@ -123,11 +125,13 @@
         "PAYEE_DICT_RESTRICTED": {},
         "DICT_CHECK_UNAVAILABLE": {
           "points": 10
-        }
+        },
+        "BANK_AUTHORIZED_CONTEXT": {},
+        "SAME_HOLDER_TRANSFER": {}
       }
     }
   },
   "tenants": {
-    "demo": "pix-experimental-v3"
+    "demo": "pix-experimental-v4"
   }
 }

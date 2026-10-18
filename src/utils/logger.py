@@ -34,6 +34,15 @@ def escape_for_log(value) -> str:
     return json.dumps(str(value), ensure_ascii=True)[1:-1]
 
 
+def request_path(request) -> str:
+    """The path exactly as the client sent it, percent-encoding kept, so a logged ID matches the request.
+
+    The decoded path can lose or merge characters (``abc%0Adef`` read as ``abcdef``); the raw bytes cannot.
+    """
+    raw_path = request.scope.get("raw_path")
+    return raw_path.decode("latin-1") if isinstance(raw_path, bytes) else request.url.path
+
+
 def log_fields(**fields) -> str:
     """Formats `key=value` pairs for a log line. Strings are escaped; None values are omitted."""
     parts = []

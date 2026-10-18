@@ -35,5 +35,9 @@ USER user
 
 # --no-server-header hides the server version; --no-access-log avoids duplicating
 # the request logger lines, which carry the request id.
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "3000", "--no-server-header", "--no-access-log"]
+# An analysis is CPU-bound Python (~90 ms), so one process caps a burst at about
+# 10 POST/s. Workers coordinate only through PostgreSQL (claims, leases, advisory
+# locks). Each holds up to 20 Pix connections: keep API_WORKERS * 20 under max_connections.
+ENV API_WORKERS=4
+CMD ["sh", "-c", "exec uvicorn app:app --host 0.0.0.0 --port 3000 --workers \"$API_WORKERS\" --no-server-header --no-access-log"]
 

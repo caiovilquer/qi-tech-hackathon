@@ -11,7 +11,7 @@ from errors.base_error import (
     MethodNotAllowed,
     NotFoundResource,
 )
-from utils.logger import get_logger, log_fields
+from utils.logger import get_logger, log_fields, request_path
 
 
 logger = get_logger(__name__)
@@ -37,7 +37,7 @@ def describe_validation_error(error: dict) -> str:
 def register_error_handlers(application: FastAPI) -> None:
     @application.exception_handler(QIException)
     def handle_qi_exception(request: Request, exception: QIException) -> JSONResponse:
-        logger.info("error.response " + log_fields(method=request.method, path=request.url.path,
+        logger.info("error.response " + log_fields(method=request.method, path=request_path(request),
                                                    status=exception.http_status, code=exception.code))
         return qi_exception_to_response(exception)
 
@@ -47,7 +47,7 @@ def register_error_handlers(application: FastAPI) -> None:
             return qi_exception_to_response(NotFoundResource())
         if exception.status_code == 405:
             return qi_exception_to_response(MethodNotAllowed())
-        logger.error("error.http " + log_fields(method=request.method, path=request.url.path,
+        logger.error("error.http " + log_fields(method=request.method, path=request_path(request),
                                                 status=exception.status_code, detail=exception.detail))
         return qi_exception_to_response(InternalError())
 
@@ -62,6 +62,6 @@ def register_error_handlers(application: FastAPI) -> None:
 
     @application.exception_handler(Exception)
     def handle_unexpected_error(request: Request, exception: Exception) -> JSONResponse:
-        logger.exception("error.unexpected " + log_fields(method=request.method, path=request.url.path,
+        logger.exception("error.unexpected " + log_fields(method=request.method, path=request_path(request),
                                                           error=type(exception).__name__))
         return qi_exception_to_response(InternalError())

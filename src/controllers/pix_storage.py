@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from uuid import UUID, uuid4
 import re
 
-from sqlalchemy import select, func
+from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
 from repositories.pix_repository import PixRepository
@@ -166,11 +166,12 @@ class PixStorage:
     @staticmethod
     def _configure(session, lock_timeout_ms):
         # Always override a server default of SERIALIZABLE/REPEATABLE READ.
+        connection = session.connection(execution_options={'isolation_level': 'READ COMMITTED'})
+        # One round trip for the fixed settings; a request budget then narrows both timeouts.
+        connection.execute(text("SELECT set_config('search_path', 'public', true), "
+                                "set_config('lock_timeout', :lock, true), set_config('statement_timeout', :statement, true)"),
+                           {'lock': f'{lock_timeout_ms}ms', 'statement': f'{STATEMENT_TIMEOUT_MS}ms'})
         bind_session_deadline(session, lock_timeout_ms)
-        session.connection(execution_options={'isolation_level': 'READ COMMITTED'})
-        session.execute(select(func.set_config('search_path', 'public', True)))
-        session.execute(select(func.set_config('lock_timeout', f'{lock_timeout_ms}ms', True)))
-        session.execute(select(func.set_config('statement_timeout', f'{STATEMENT_TIMEOUT_MS}ms', True)))
 
     @staticmethod
     def _validated_lock_timeout(lock_timeout_ms):

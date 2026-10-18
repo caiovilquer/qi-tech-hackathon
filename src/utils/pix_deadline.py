@@ -44,8 +44,16 @@ async def in_database(deadline, operation, *args, **kwargs):
         raise BudgetExceeded('Database request deadline exceeded; retry same ID/body') from error
 
 
+# A statement may outlive the request budget by at most this much; commit is always exact.
+LIMITS_REFRESH_SECONDS = .01
+
+
 def bind_session_deadline(session,lock_timeout_ms=1000):
-    """Recompute server timeouts before every statement and before flush/commit.
+    """Recompute server timeouts from the remaining budget before statements, flush and commit.
+
+    Server timeouts are reissued once LIMITS_REFRESH_SECONDS have passed since the
+    last setting, and always before commit. Repeating set_config before each of a
+    burst of fast statements was half of all round trips of an analysis.
 
     Cancellation of an HTTP waiter cannot kill a Python thread. Its budget is
     still checked here, preventing any later commit; if commit was already sent,
@@ -54,13 +62,20 @@ def bind_session_deadline(session,lock_timeout_ms=1000):
     deadline = current_deadline.get()
     if deadline is None:
         return
-    deadline.remaining()
+    issued_at = None
 
-    def limits():
-        ms = max(1, int(deadline.remaining()*1000))
+    def limits(force=False):
+        nonlocal issued_at
+        remaining = deadline.remaining()
+        now = deadline.clock()
+        if not force and issued_at is not None and now - issued_at < LIMITS_REFRESH_SECONDS:
+            return
+        ms = max(1, int(remaining*1000))
         session.connection().execute(text("SELECT set_config('statement_timeout', :s, true), "
             "set_config('lock_timeout', :l, true)"), {'s':f'{ms}ms', 'l':f'{min(ms,lock_timeout_ms)}ms'})
+        issued_at = now
 
+    limits(force=True)
     event.listen(session, 'do_orm_execute', lambda state: limits())
-    event.listen(session, 'before_commit', lambda _: limits())
+    event.listen(session, 'before_commit', lambda _: limits(force=True))
     event.listen(session, 'before_flush', lambda *_: limits())

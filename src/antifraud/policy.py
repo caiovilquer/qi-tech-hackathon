@@ -14,7 +14,7 @@ class PolicyConfigurationError(ValueError):
 
 @dataclass(frozen=True)
 class Policy:
-    version: str = "pix-experimental-v3"
+    version: str = "pix-experimental-v4"
     family_caps: tuple[tuple[str, int], ...] = (("Limite", 30), ("Velocity", 30),
         ("Montante", 30), ("Perfil", 30), ("Acesso", 40), ("Contraparte", 50))
     two_fa_at: int = 30

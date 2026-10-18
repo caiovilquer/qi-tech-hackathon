@@ -1,0 +1,175 @@
+{
+  "total_linhas": 12672,
+  "comparacao": {
+    "conforme": 8388,
+    "divergente": 540,
+    "indeterminado": 1152,
+    "inaplicavel": 2592
+  },
+  "casos": {
+    "1": {
+      "descricao": "Aparelho roubado com aplicativo desbloqueado",
+      "gabarito_tipo": "dano_confirmado",
+      "status_aceitos": [
+        "rejected"
+      ],
+      "comparacao": {
+        "conforme": 1152
+      },
+      "status_observados": {
+        "rejected": 1152
+      }
+    },
+    "2": {
+      "descricao": "Usuário coagido a enviar Pix",
+      "gabarito_tipo": "dano_confirmado",
+      "status_aceitos": [
+        "rejected"
+      ],
+      "comparacao": {
+        "conforme": 1152
+      },
+      "status_observados": {
+        "rejected": 1152
+      }
+    },
+    "3": {
+      "descricao": "Usuário legítimo envia para contas diferentes",
+      "gabarito_tipo": "legitima",
+      "status_aceitos": [
+        "approved",
+        "two_factor_required"
+      ],
+      "comparacao": {
+        "conforme": 924,
+        "divergente": 228
+      },
+      "status_observados": {
+        "approved": 369,
+        "two_factor_required": 555,
+        "rejected": 228
+      }
+    },
+    "4": {
+      "descricao": "Usuário legítimo recebe de contas diferentes",
+      "gabarito_tipo": "legitima",
+      "status_aceitos": [
+        "approved",
+        "two_factor_required"
+      ],
+      "comparacao": {
+        "conforme": 840,
+        "divergente": 312
+      },
+      "status_observados": {
+        "approved": 357,
+        "two_factor_required": 483,
+        "rejected": 312
+      }
+    },
+    "5": {
+      "descricao": "Usuário faz Pix",
+      "gabarito_tipo": "sem_verdade_terreno",
+      "status_aceitos": [],
+      "comparacao": {
+        "indeterminado": 1152
+      },
+      "status_observados": {
+        "approved": 369,
+        "two_factor_required": 555,
+        "rejected": 228
+      }
+    },
+    "6": {
+      "descricao": "Envio para destinatário suspeito",
+      "gabarito_tipo": "suspeita_documentada",
+      "status_aceitos": [
+        "two_factor_required",
+        "rejected"
+      ],
+      "comparacao": {
+        "conforme": 1152
+      },
+      "status_observados": {
+        "two_factor_required": 588,
+        "rejected": 564
+      }
+    },
+    "7": {
+      "descricao": "Recebimento de remetente suspeito",
+      "gabarito_tipo": "suspeita_documentada",
+      "status_aceitos": [
+        "two_factor_required",
+        "rejected"
+      ],
+      "comparacao": {
+        "conforme": 1152
+      },
+      "status_observados": {
+        "two_factor_required": 588,
+        "rejected": 564
+      }
+    },
+    "8": {
+      "descricao": "Novo telefone e retorno ao aparelho antigo",
+      "gabarito_tipo": "paridade_sem_revogacao",
+      "status_aceitos": [
+        "igual_ao_caso_5"
+      ],
+      "comparacao": {
+        "conforme": 1152
+      },
+      "status_observados": {
+        "approved": 369,
+        "two_factor_required": 555,
+        "rejected": 228
+      }
+    },
+    "9": {
+      "descricao": "Empresa abre filial em outro país com alta movimentação",
+      "gabarito_tipo": "legitima",
+      "status_aceitos": [
+        "approved",
+        "two_factor_required"
+      ],
+      "comparacao": {
+        "inaplicavel": 1008,
+        "conforme": 144
+      },
+      "status_observados": {
+        "two_factor_required": 144
+      }
+    },
+    "10": {
+      "descricao": "Transferência para a mesma titularidade",
+      "gabarito_tipo": "legitima",
+      "status_aceitos": [
+        "approved",
+        "two_factor_required"
+      ],
+      "comparacao": {
+        "conforme": 576,
+        "inaplicavel": 576
+      },
+      "status_observados": {
+        "two_factor_required": 468,
+        "approved": 108
+      }
+    },
+    "11": {
+      "descricao": "Empresa paga funcionários em lote",
+      "gabarito_tipo": "legitima",
+      "status_aceitos": [
+        "approved",
+        "two_factor_required"
+      ],
+      "comparacao": {
+        "inaplicavel": 1008,
+        "conforme": 144
+      },
+      "status_observados": {
+        "two_factor_required": 144
+      }
+    }
+  }
+}

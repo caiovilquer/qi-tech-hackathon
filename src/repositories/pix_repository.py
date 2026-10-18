@@ -180,7 +180,11 @@ class PixRepository:
                          or_(and_(same_payer, tables.pix.c.transaction_at > transaction_at - timedelta(days=policy.history_days)),
                              and_(same_destination, tables.pix.c.transaction_at > transaction_at - FAN_IN_WINDOW)))
         recent_receipts = and_(same_payer, tables.analysis.c.decision_at > at - timedelta(minutes=policy.velocity_minutes))
-        query = select(tables.pix, tables.analysis.c.status, tables.analysis.c.decision_at, tables.analysis.c.sequence,
+        # Only the columns of a domain Pix: payload/raw_body JSONB would be decoded for every history row.
+        pix_columns = [tables.pix.c[name] for name in ('id', 'tenant_id', 'external_id', 'payer_branch', 'payer_account',
+            'payer_document', 'payee_document', 'participant', 'destination_branch', 'destination_account',
+            'amount_cents', 'transaction_at', 'destination_opened_at', 'device_id')]
+        query = select(*pix_columns, tables.analysis.c.status, tables.analysis.c.decision_at, tables.analysis.c.sequence,
                        tables.analysis.c.device_state, tables.analysis.c.night_qualifies, tables.challenge.c.challenge_id).join(
             tables.analysis, and_(tables.analysis.c.tenant_id == tables.pix.c.tenant_id,
                                   tables.analysis.c.pix_id == tables.pix.c.id)).outerjoin(
@@ -191,7 +195,7 @@ class PixRepository:
         rows = self.session.execute(query).mappings().all()
         histories = tuple(HistoricalAnalysis(self.domain_pix(row), row['decision_at'], row['sequence'], row['status'],
                                              row['challenge_id'], row['device_state'], row['night_qualifies']) for row in rows)
-        payer_row_ids = [row['id'] for row in rows if self.domain_pix(row).payer == pix.payer]
+        payer_row_ids = [row['id'] for row, history in zip(rows, histories) if history.pix.payer == pix.payer]
         executions, authentications = [], []
         if payer_row_ids:
             events = self.session.execute(select(tables.event).where(tables.event.c.tenant_id == pix.payer.tenant,

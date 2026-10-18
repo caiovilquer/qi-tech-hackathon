@@ -1,0 +1,113 @@
+{
+  "politica": "pix-experimental-v4",
+  "fingerprint": "d5e4ede43c348a26560405971c17b03a0a754bb5abf19ce6f63d9a9f063db3c7",
+  "total_combinacoes": 12672,
+  "total_avaliadas": 10080,
+  "total_inaplicaveis": 2592,
+  "totais_status": {
+    "approved": 1572,
+    "two_factor_required": 4080,
+    "rejected": 4428
+  },
+  "casos": {
+    "1": {
+      "descricao": "Aparelho roubado com aplicativo desbloqueado",
+      "combinacoes": 1152,
+      "avaliadas": 1152,
+      "inaplicaveis": 0,
+      "approved": 0,
+      "two_factor_required": 0,
+      "rejected": 1152
+    },
+    "2": {
+      "descricao": "Usuário coagido a enviar Pix",
+      "combinacoes": 1152,
+      "avaliadas": 1152,
+      "inaplicaveis": 0,
+      "approved": 0,
+      "two_factor_required": 0,
+      "rejected": 1152
+    },
+    "3": {
+      "descricao": "Usuário legítimo envia para contas diferentes",
+      "combinacoes": 1152,
+      "avaliadas": 1152,
+      "inaplicaveis": 0,
+      "approved": 369,
+      "two_factor_required": 555,
+      "rejected": 228
+    },
+    "4": {
+      "descricao": "Usuário legítimo recebe de contas diferentes",
+      "combinacoes": 1152,
+      "avaliadas": 1152,
+      "inaplicaveis": 0,
+      "approved": 357,
+      "two_factor_required": 483,
+      "rejected": 312
+    },
+    "5": {
+      "descricao": "Usuário faz Pix",
+      "combinacoes": 1152,
+      "avaliadas": 1152,
+      "inaplicaveis": 0,
+      "approved": 369,
+      "two_factor_required": 555,
+      "rejected": 228
+    },
+    "6": {
+      "descricao": "Envio para destinatário suspeito",
+      "combinacoes": 1152,
+      "avaliadas": 1152,
+      "inaplicaveis": 0,
+      "approved": 0,
+      "two_factor_required": 588,
+      "rejected": 564
+    },
+    "7": {
+      "descricao": "Recebimento de remetente suspeito",
+      "combinacoes": 1152,
+      "avaliadas": 1152,
+      "inaplicaveis": 0,
+      "approved": 0,
+      "two_factor_required": 588,
+      "rejected": 564
+    },
+    "8": {
+      "descricao": "Novo telefone e retorno ao aparelho antigo",
+      "combinacoes": 1152,
+      "avaliadas": 1152,
+      "inaplicaveis": 0,
+      "approved": 369,
+      "two_factor_required": 555,
+      "rejected": 228
+    },
+    "9": {
+      "descricao": "Empresa abre filial em outro país com alta movimentação",
+      "combinacoes": 1152,
+      "avaliadas": 144,
+      "inaplicaveis": 1008,
+      "approved": 0,
+      "two_factor_required": 144,
+      "rejected": 0
+    },
+    "10": {
+      "descricao": "Transferência para a mesma titularidade",
+      "combinacoes": 1152,
+      "avaliadas": 576,
+      "inaplicaveis": 576,
+      "approved": 108,
+      "two_factor_required": 468,
+      "rejected": 0
+    },
+    "11": {
+      "descricao": "Empresa paga funcionários em lote",
+      "combinacoes": 1152,
+      "avaliadas": 144,
+      "inaplicaveis": 1008,
+      "approved": 0,
+      "two_factor_required": 144,
+      "rejected": 0
+    }
+  }
+}

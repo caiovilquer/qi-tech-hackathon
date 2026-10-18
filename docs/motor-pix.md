@@ -62,10 +62,12 @@ banco e replay HTTP serão implementados nas etapas 4/5.
 
 `src/antifraud/policies.json` contém `policies` por versão e `tenants` apontando
 para uma versão existente. A configuração inicial só contém `demo` e
-`pix-experimental-v3`, com os defaults exatos do simulador V3. Não resolve
+`pix-experimental-v4`: os defaults exatos do simulador V3 mais quatro critérios
+(dois pisos e dois tetos, abaixo). `tests/reference/verify_pix_reference.py`
+aceita como diferença em relação à V3 apenas um teto transformando rejeição em 2FA. Não resolve
 credenciais nem faz fallback entre instituições.
 
-Cada versão exige todos os parâmetros globais e todos os 25 critérios. Cada
+Cada versão exige todos os parâmetros globais e todos os 29 critérios. Cada
 critério tem identificador, família, avaliador puro, defaults e schema de
 parâmetros, expostos pelo registro somente leitura `CRITERIA`. Não há flags
 para remover regras, DSL, `eval`, SQL ou endpoint administrativo.
@@ -113,6 +115,8 @@ integralmente no arquivo JSON e validados por `configuration_schema()`.
 | `DEVICE_CHANGE` | Acesso | `{'points': 20}` | local |
 | `DEVICE_POLICY_LIMIT` | Acesso | `{}` | local |
 | `RECENT_ACCOUNT_RECOVERY` | Acesso | `{'points': 25}` | local |
+| `DEVICE_THEFT_REPORTED` | Acesso | `{}` | local |
+| `DURESS_REPORTED` | Acesso | `{}` | local |
 | `PAYER_BANK_RESTRICTED` | Contraparte | `{}` | local |
 | `PAYEE_BANK_RESTRICTED` | Contraparte | `{}` | local |
 | `BANK_EFFECTIVE_LIMIT` | Limite | `{}` | local |
@@ -121,6 +125,8 @@ integralmente no arquivo JSON e validados por `configuration_schema()`.
 | `PAYEE_DICT_ADVERSE` | Contraparte | `{'points': 30}` | reputation |
 | `PAYEE_DICT_RESTRICTED` | Contraparte | `{}` | reputation |
 | `DICT_CHECK_UNAVAILABLE` | Contraparte | `{'points': 10}` | reputation |
+| `BANK_AUTHORIZED_CONTEXT` | Acesso | `{}` | ceiling |
+| `SAME_HOLDER_TRANSFER` | Contraparte | `{}` | ceiling |
 
 Os tetos iniciais são Limite 30, Velocity 30, Montante 30, Perfil 30,
 Acesso 40 e Contraparte 50. Pesos assimétricos mantêm o máximo entre os dois
