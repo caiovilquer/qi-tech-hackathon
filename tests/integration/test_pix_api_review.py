@@ -6,9 +6,7 @@ from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 import json
-from threading import Event
-from time import monotonic, sleep
-from types import SimpleNamespace
+from time import sleep
 from uuid import uuid4
 
 import pytest
