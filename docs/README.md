@@ -5,7 +5,19 @@ Os 24 arquivos de fonte em [contexto/](contexto/) foram preservados byte a byte,
 com os caminhos relativos entre eles. [fontes.md](fontes.md) registra os hashes.
 Caches, ambientes virtuais e temporários ficaram fora do Git.
 
-## Ordem de leitura para a PR 1
+## Ordem de leitura para a PR 2
+
+1. [Prompt de revisão independente](REVISAO-PR2.md),
+   [plano](../PLANO-IMPLEMENTACAO.md) e [README](../README.md).
+2. [Interfaces, critérios e configuração do motor](motor-pix.md) e
+   [evidências e rastreabilidade dos testes](validacao-pr2.md).
+3. [Guia vigente V3](contexto/GUIA-IMPLEMENTACAO-ANTIFRAUDE-PIX.md), seções
+   3–7 e 9; contrato oficial no PDF, páginas 19–25; referências listadas abaixo.
+
+A PR 1 foi aprovada e mergeada. A PR 2 entrega contrato e motor puro, sem
+rotas Pix, providers de produção, ingestão de eventos ou storage Pix.
+
+## Histórico da PR 1
 
 1. [Prompt de revisão independente](REVISAO-PR1.md): objetivo, critérios,
    arquivos, comandos e formato dos achados.

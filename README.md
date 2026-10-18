@@ -1,13 +1,14 @@
 # Antifraude Pix
 
 Implementação em etapas sobre a Base API do Bootcamp QI Tech. **Etapa atual:
-base reproduzível e migrations, em revisão.** O motor e os endpoints Pix ainda
-não estão disponíveis. A API de exemplo da base funciona com PostgreSQL real.
+contrato e motor puro versionado (PR 2), em revisão.** A PR 1 foi aprovada e
+mergeada. A API de exemplo funciona com PostgreSQL real; os endpoints Pix
+ainda não estão disponíveis.
 O [plano de implementação](PLANO-IMPLEMENTACAO.md) define as próximas PRs e os
 critérios de aceitação. Cada etapa depende de revisão e aprovação da anterior.
 
 Para revisão independente, começar pelo [índice de documentos](docs/README.md)
-e pelo [prompt da PR 1](docs/REVISAO-PR1.md). Todas as fontes fornecidas estão
+e pelo [prompt da PR 2](docs/REVISAO-PR2.md). Todas as fontes fornecidas estão
 versionadas em `docs/contexto/`, inclusive guia vigente, enunciado, ZIP,
 referência executável e histórico identificado.
 
@@ -25,9 +26,15 @@ referência executável e histórico identificado.
 - Stack de testes separada, descartável, sem portas publicadas, com testes
   HTTP e PostgreSQL. O CI executa essa mesma stack em Linux.
 
-Não há análise Pix, idempotência Pix, integração DICT, eventos bancários ou
-regra antifraude nesta etapa. As rotas de exemplo não fazem parte do contrato
-Pix. O health check mede liveness da API e não confirma disponibilidade do banco.
+A PR 2 acrescenta parsing JSON exato, normalização/hash do contrato oficial,
+25 critérios puros, políticas imutáveis por tenant/versão validadas no startup
+e resposta pública separada do snapshot de auditoria. Ver
+[contrato e motor](docs/motor-pix.md) e [evidências](docs/validacao-pr2.md).
+
+Não há endpoints/análises persistidas Pix, idempotência Pix ou adapters de
+providers nesta etapa. Os tipos de eventos são entradas do motor; ingestão e
+persistência bancária pertencem às próximas PRs. As rotas de exemplo não
+fazem parte do contrato Pix. O health check mede liveness da API e não confirma disponibilidade do banco.
 
 ## Como rodar
 
@@ -96,10 +103,12 @@ nome em `-p`. Migrations são exercitadas em bancos aleatórios adicionais,
 criados e removidos no servidor de testes (o usuário local de testes precisa
 poder criar bancos). A API não ganha endpoints administrativos para isso.
 
-Execução local após a revisão: **83 testes passaram**, incluindo os 35 testes
-originais. A referência externa tem **92 testes** e **59 observações** da
-simulação reproduzidos separadamente; esses números não são testes HTTP/Pix.
-Ver comandos, resultados e limites em [docs/validacao-pr1.md](docs/validacao-pr1.md).
+Execução local desta etapa: **186 testes passaram** (83 da etapa anterior +
+103 testes puros novos), incluindo os 35 testes HTTP originais. A comparação
+separada reproduziu **59 observações** e **2.000 contextos** com decisão completa
+igual à referência V3. O CI faz essa comparação montando as fontes somente
+para leitura no container de testes. Esses números não comprovam HTTP/Pix,
+concorrência Pix ou eficácia. Ver [evidências da PR 2](docs/validacao-pr2.md).
 
 Para um ambiente Python local opcional:
 
@@ -135,18 +144,37 @@ Nunca editar uma migration aplicada; adicionar a próxima. Não há downgrade
 automático. Mudanças futuras precisam de migration compatível e teste de
 upgrade preservando dados. Falhas impedem a API de iniciar via Compose.
 
-## Como o motor de decisão funcionará
+## Motor de decisão puro
 
-O enunciado pede entrada oficial e saídas `approved`, `rejected` ou
-`two_factor_required`, com topo `key`, `status`, `metadata` e consulta por ID.
-O guia V3 fixa nossa política **experimental** `pix-experimental-v3`, que será
-portada para um motor puro antes de expor os endpoints. Score, cortes, janelas
-e TTL não são probabilidades calibradas ou prova de conformidade regulatória.
+O enunciado define três status: `approved`, `rejected` e `two_factor_required`,
+com topo `key`, `status`, `metadata`. O motor implementa a política
+**experimental** `pix-experimental-v3`. Score, cortes, janelas e TTL não são
+probabilidades calibradas ou prova de conformidade regulatória.
 
-Histórico de execução, resultado de 2FA e análise serão fatos separados;
-replay/GET preservarão a análise original. O simulador Python não será usado
-como banco nem apresentado como evidência de transações ou concorrência.
-Detalhes e dependências estão no plano; nenhuma regra é declarada ativa aqui.
+O motor recebe `Context` e `Policy` imutáveis, com tempo explícito e histórico
+já selecionado. Não consulta banco, rede ou relógio. Execução bancária, 2FA e
+análise são fatos separados; aprovação e sucesso de 2FA não contam como execução.
+O DTO congela os resultados em JSON independente de eventos ou políticas futuros;
+a garantia de persistência/replay será integrada nas próximas etapas.
+
+A API carrega `src/antifraud/policies.json` no startup. O catálogo contém apenas
+o tenant sintético `demo`; tenant desconhecido falha sem herdar configuração.
+Isso ainda não liga tenant à credencial HTTP. Para mudar a configuração, editar
+o arquivo e reconstruir a imagem. `PIX_POLICY_FILE` é um caminho **dentro da
+imagem**, sem recarga dinâmica. Configuração ausente ou inválida impede o startup.
+Pesos não negativos são parametrizados; os pisos de restrição e revogação
+permanecem no código. Novo critério exige código e testes.
+
+Com o venv de desenvolvimento instalado, os testes puros não exigem banco:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m unittest discover -s tests/unit -p 'test_pix*.py' -q
+PYTHONPATH=src .venv/bin/python tests/reference/verify_pix_reference.py
+```
+
+[Documentação do motor](docs/motor-pix.md): interfaces, configuração,
+auditoria, limites e mapa dos critérios. O `Simulator` existe somente nas
+fontes e no harness dos testes; não é repository da aplicação.
 
 ## Desenvolvimento e limites
 

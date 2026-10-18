@@ -1,0 +1,133 @@
+{
+  "policies": {
+    "pix-experimental-v3": {
+      "parameters": {
+        "family_caps": {
+          "Limite": 30,
+          "Velocity": 30,
+          "Montante": 30,
+          "Perfil": 30,
+          "Acesso": 40,
+          "Contraparte": 50
+        },
+        "two_fa_at": 30,
+        "reject_at": 70,
+        "history_days": 90,
+        "maturity_hours": 24,
+        "general_min_payments": 5,
+        "general_min_days": 3,
+        "payee_min_payments": 2,
+        "low_history_cents": [
+          100000,
+          500000
+        ],
+        "pj_factor": 5,
+        "velocity_minutes": 10,
+        "velocity_pf": [
+          5,
+          10
+        ],
+        "velocity_pj": [
+          25,
+          100
+        ],
+        "daily_cents": 500000,
+        "daily_profile_multiple": 3,
+        "amount_profile_multiples": [
+          2,
+          5
+        ],
+        "structuring_limits": [
+          100000,
+          300000,
+          500000
+        ],
+        "structuring_percent": 85,
+        "structuring_count": 3,
+        "recent_account_days": [
+          7,
+          30
+        ],
+        "fan_in_payers": 5,
+        "fan_in_current_cents": 50000,
+        "fan_in_sum_cents": 500000,
+        "device_single_cents": 20000,
+        "device_day_cents": 100000,
+        "night_soft_cents": 100000,
+        "night_hard_cents": 300000,
+        "night_start_hour": 20,
+        "night_end_hour": 6,
+        "dict_threshold": 80,
+        "uncertainty_each": 20,
+        "uncertainty_cap": 40,
+        "dict_ttl_seconds": 300
+      },
+      "criteria": {
+        "NIGHT_SOFT_LIMIT": {},
+        "NIGHT_HARD_LIMIT": {},
+        "LOW_HISTORY_EXPOSURE": {
+          "low_points": 15,
+          "high_points": 30
+        },
+        "VELOCITY_BURST": {
+          "points": 30
+        },
+        "RECEIPT_VELOCITY": {
+          "points": 30
+        },
+        "DAILY_AMOUNT": {
+          "points": 20
+        },
+        "STRUCTURING": {
+          "points": 30
+        },
+        "AMOUNT_ABOVE_PROFILE": {
+          "low_points": 15,
+          "high_points": 30
+        },
+        "RECENT_PAYEE_ACCOUNT": {
+          "young_points": 25,
+          "recent_points": 10
+        },
+        "NEW_PAYEE": {
+          "points": 10
+        },
+        "SELF_TRANSFER_NEW_ACCOUNT": {
+          "points": 15
+        },
+        "MULE_FAN_IN": {
+          "pf_points": 40,
+          "pj_points": 20
+        },
+        "DEVICE_REVOKED": {},
+        "UNREGISTERED_DEVICE": {
+          "points": 20
+        },
+        "DEVICE_CHANGE": {
+          "points": 20
+        },
+        "DEVICE_POLICY_LIMIT": {},
+        "RECENT_ACCOUNT_RECOVERY": {
+          "points": 25
+        },
+        "PAYER_BANK_RESTRICTED": {},
+        "PAYEE_BANK_RESTRICTED": {},
+        "BANK_EFFECTIVE_LIMIT": {},
+        "PAYER_DICT_ADVERSE": {
+          "points": 30
+        },
+        "PAYER_DICT_RESTRICTED": {},
+        "PAYEE_DICT_ADVERSE": {
+          "points": 30
+        },
+        "PAYEE_DICT_RESTRICTED": {},
+        "DICT_CHECK_UNAVAILABLE": {
+          "points": 10
+        }
+      }
+    }
+  },
+  "tenants": {
+    "demo": "pix-experimental-v3"
+  }
+}
