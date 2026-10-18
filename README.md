@@ -6,6 +6,11 @@ não estão disponíveis. A API de exemplo da base funciona com PostgreSQL real.
 O [plano de implementação](PLANO-IMPLEMENTACAO.md) define as próximas PRs e os
 critérios de aceitação. Cada etapa depende de revisão e aprovação da anterior.
 
+Para revisão independente, começar pelo [índice de documentos](docs/README.md)
+e pelo [prompt da PR 1](docs/REVISAO-PR1.md). Todas as fontes fornecidas estão
+versionadas em `docs/contexto/`, inclusive guia vigente, enunciado, ZIP,
+referência executável e histórico identificado.
+
 ## O que esta etapa entrega
 
 - Base fornecida importada integralmente, conferida contra o ZIP, em commit
@@ -136,7 +141,9 @@ Detalhes e dependências estão no plano; nenhuma regra é declarada ativa aqui.
 ## Desenvolvimento e limites
 
 - Git, branches e commits ficam somente nesta subpasta. Não inicializar Git na
-  pasta pai. Não adicionar ZIPs, ambientes locais, logs ou arquivos temporários.
+  pasta pai. O ZIP original fornecido é a exceção documental versionada em
+  `docs/contexto/`; não adicionar outros arquivos compactados, ambientes locais,
+  caches, logs ou temporários.
 - Nenhum deploy, merge automático ou integração com banco/DICT real nesta etapa.
 - `requirements.txt` e `requirements-dev.txt` mantêm as versões diretas da base.
   `requirements.lock` fixa também as transitivas para Python 3.11/Linux,

@@ -73,6 +73,9 @@ coverage.xml
 *.7z
 *.rar
 
+# Original obrigatório, preservado como fonte para revisão.
+!docs/contexto/bootcamp-base-api.zip
+
 # --- Tipagem estática --------------------------------------
 .mypy_cache/
 .ruff_cache/

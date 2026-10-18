@@ -30,3 +30,6 @@ htmlcov
 .vscode
 .idea
 .DS_Store
+
+# Fontes de contexto/revisão não são dependências da imagem ou da API.
+docs/contexto

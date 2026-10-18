@@ -1,5 +1,9 @@
 # Evidências da PR 1
 
+Registro da implementação funcional no commit `f5b02ca`. Posteriormente, as
+fontes externas foram movidas para `docs/contexto/` a pedido do usuário.
+O [índice atual](README.md) reúne todo o contexto disponível em um clone.
+
 Validação local em 18/10/2026, macOS ARM64 com Docker Desktop. Containers:
 Python 3.11, PostgreSQL **16.15** real. Os registros usados são sintéticos.
 A confirmação da suíte Linux do GitHub fica nos checks da PR; os números
@@ -7,10 +11,16 @@ abaixo são execuções locais, não uma previsão de resultado do CI.
 
 ## Referência externa
 
-Executado na pasta pai, sem alterar os arquivos de referência:
+Executado originalmente na pasta pai, sem alterar os arquivos de referência:
 
 ```bash
 tmp/revisao-v2/.venv/bin/python -m unittest -q test_contrato_pix test_politica_pix
+```
+
+Após a organização das fontes, o comando equivalente na raiz do repositório é:
+
+```bash
+.venv/bin/python -m unittest discover -s docs/contexto -p 'test_*.py' -q
 ```
 
 **92 passaram**, sem skips (36 contrato + 56 motor). O Python global não tinha
@@ -99,8 +109,9 @@ máscara foi executado com sucesso. Isso não altera o contrato Pix futuro.
 - Corrigidos durante revisão própria: dependências transitivas abertas,
   instruções antigas de reset, exemplo de CPF e tratamento genérico/placeholder
   do helper de resposta de testes. Sem pendência conhecida dentro desta etapa.
-- Temporários/logs/venv não fazem parte dos commits; arquivos da pasta pai não
-  entraram no Git. Somente credenciais locais fictícias nos exemplos/Compose.
+- Temporários/logs/venv não fazem parte dos commits. As fontes originalmente
+  externas foram incluídas depois em `docs/contexto/`, preservadas byte a byte.
+  Somente credenciais locais fictícias nos exemplos/Compose.
 
 ## Limites e próximos gates
 
@@ -114,3 +125,18 @@ ou reparo de schema. Adoção confere a estrutura inicial, não faz auditoria
 universal de triggers/permissões. Imagens mantêm tags de série; dependências
 Python estão fixadas, mas não se promete um build hermético de binários.
 Nenhum deploy, integração bancária real ou merge foi executado.
+
+## Atualização de contexto para a revisão
+
+As 24 fontes foram movidas para `docs/contexto/` com conferência de SHA-256
+antes/depois; o prompt foi movido para `docs/REVISAO-PR1.md` e atualizado.
+Os links locais do guia V3, revisão independente, índice, inventário, README,
+plano e evidências foram conferidos. Arquivos históricos permanecem com os
+bytes recebidos e estão identificados como histórico no índice.
+
+Após a movimentação: **92 testes da referência passaram**, sem skips; as
+**59 observações** foram reproduzidas sem sobrescrever o JSON. O novo build
+Docker e a suíte da API também passaram: **57 testes**, PostgreSQL real,
+exit code 0. `pytest.ini` separa a descoberta da API (`tests/`) das fontes
+Python arquivadas; `.dockerignore` exclui `docs/contexto/` da imagem.
+Nenhuma implementação das próximas etapas foi antecipada.

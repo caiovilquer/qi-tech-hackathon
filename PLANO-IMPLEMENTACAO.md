@@ -6,8 +6,12 @@ explícita da etapa anterior. Não há API Pix entregue nesta primeira etapa.
 
 ## Fontes e precedência
 
-Os originais ficam na pasta pai, fora deste Git. Inventário e SHA-256 em
-[docs/fontes.md](docs/fontes.md). Ler as fontes vigentes antes de cada etapa.
+As fontes foram movidas da pasta pai para [docs/contexto](docs/contexto),
+dentro deste Git, para permitir revisão em um clone independente. Ordem de
+leitura e distinção entre vigente/histórico em [docs/README.md](docs/README.md);
+inventário e SHA-256 em [docs/fontes.md](docs/fontes.md). Ler as fontes
+vigentes antes de cada etapa. Os arquivos de referência não são implementação
+de etapas futuras nem dependências de runtime.
 
 1. **Oficial:** `Hackathon Antifraude Pix.pdf`, páginas 19–25: POST
    `/pix/transaction`, GET `/pix/transaction/{id}`, entrada oficial, topo
