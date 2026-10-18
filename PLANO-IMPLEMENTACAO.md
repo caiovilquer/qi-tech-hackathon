@@ -6,9 +6,10 @@ PR 2 aprovada e mergeada em `1971e51fad28c38ad7e198db78f9ab73a1837b14`.
 PR 3 aprovada e mergeada em `1e233ee4e5a02b3d7e7818eff1b1a27089690978`.
 Etapa 4 aprovada e mergeada pela PR #5 em
 `3daa579ef040e49f3f242a1bf7b39d01f9aefabc`.
-Etapa 5 implementada em `feat/pix-api`, criada após pull de `origin/main` nessa
-base, para revisão independente. POST/GET Pix integram claims, providers e commit;
-aceitação/demonstração final continuam na etapa 6, sem avanço antecipado.
+Etapa 5 aprovada e mergeada pela PR #6 em
+`21a3938defe320ebd7f0f30a51911ca0b1798371`.
+Etapa 6 em `test/pix-delivery`, criada após pull de `origin/main` nesse SHA;
+aceitação integrada, demonstração reproduzível e documentação final para revisão.
 
 ## Fontes e precedência
 
@@ -204,6 +205,12 @@ conformidade ou DICT real. **Testes:** matriz integral HTTP/PostgreSQL,
 regressões, falhas de providers e recuperação; revisão de segurança/configuração.
 **Riscos:** evidências de fixtures interpretadas como calibração; documentação
 prometer funcionalidade que não foi exercitada.
+
+**Entrega da etapa 6:** [matriz de aceitação](docs/aceitacao-pix.md),
+[demonstração executável](scripts/demo_pix.py), [evidências/TDD](docs/validacao-pr6.md)
+e [prompt independente](docs/REVISAO-PR6.md). O README segue o modelo oficial,
+com integrantes confirmados, 25 regras, parâmetros, racional e comandos.
+Sem migration, alteração de contrato ou mudança da política nesta etapa.
 
 ## Gate de cada etapa
 

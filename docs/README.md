@@ -7,11 +7,23 @@ Caches, ambientes virtuais e temporários ficaram fora do Git.
 
 ## Estado atual
 
-As etapas 1–4 foram mergeadas, incluindo a PR #5 em `3daa579`. A etapa 5
-(`feat/pix-api`) parte dessa `origin/main` atualizada e entrega POST/GET Pix
-para revisão. O número GitHub difere da etapa por causa da PR adicional de docs.
+As etapas 1–5 foram aprovadas e mergeadas. A etapa 6 (`test/pix-delivery`)
+parte de `origin/main` em `21a3938`, merge da PR #6, e fecha aceitação,
+demonstração e documentação. O número GitHub difere da etapa pela PR adicional
+de documentos. Os registros de cada etapa abaixo conservam seu contexto histórico;
+o estado integrado vigente está no README e na matriz final.
 
-## Revisão da etapa 5
+## Revisão da etapa 6
+
+1. [Prompt independente](REVISAO-PR6.md), [plano](../PLANO-IMPLEMENTACAO.md)
+   e [README no modelo oficial](../README.md).
+2. [Matriz do guia §11.2 e roteiro de demo](aceitacao-pix.md),
+   [evidências/TDD](validacao-pr6.md), [runner](../scripts/demo_pix.py)
+   e [aceitação executável](../tests/integration/test_pix_delivery.py).
+3. Guia V3 §§11.2/11.3 e PDF oficial páginas 19–25. Sem mudanças de contrato,
+   política ou migrations. Providers permanecem simulados explícitos.
+
+## Histórico da etapa 5
 
 1. [Prompt independente](REVISAO-PR5.md), [plano](../PLANO-IMPLEMENTACAO.md)
    e [README](../README.md).

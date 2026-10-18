@@ -162,5 +162,5 @@ Correções e ressalvas da revisão: [CORRECOES-REVISAO-PR5.md](CORRECOES-REVISA
 da re-revisão: [CORRECOES-REREVISAO-PR5.md](CORRECOES-REREVISAO-PR5.md).
 
 Validação/TDD: [validacao-pr5.md](validacao-pr5.md). Revisão:
-[REVISAO-PR5.md](REVISAO-PR5.md). A etapa 6 permanece para aceitação/demonstração e
-documentação final; não recebe bugs obrigatórios conhecidos desta etapa.
+[REVISAO-PR5.md](REVISAO-PR5.md). A aceitação/demonstração integrada e os limites da entrega estão em
+[aceitacao-pix.md](aceitacao-pix.md) e [validacao-pr6.md](validacao-pr6.md).
